@@ -3,6 +3,10 @@ GORUN = go run
 GOBIN = ./bin
 GOTEST = go test
 
+eth:
+	chmod +x ./scripts/eth-node.sh
+	./scripts/eth-node.sh
+
 help:
 	$(GORUN) ./cmd/4337-in-a-box/main.go -h
 

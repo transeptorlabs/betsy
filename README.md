@@ -9,7 +9,9 @@ This project structure adheres to standard Go project layouts:
 │   └── 4337-in-a-box/    # Application entry point
 │       └── main.go
 ├── internal/       # Private application and library code
+├── contracts/      # Forge smart contracts
 ├── pkg/            # Library code that's okay to be used by external applications
+├── scripts/        # Local scripts
 ├── go.mod          # Module definition
 ├── go.sum          # Dependencies checksum
 └── README.md       # Project documentation
@@ -19,7 +21,12 @@ This project structure adheres to standard Go project layouts:
 
 1. [Go - >= v1.22.4](https://go.dev/doc/install)
 2. [Docker](https://docs.docker.com/engine/install)
+3. [foundry](https://book.getfoundry.sh/getting-started/installation)
 
+## Supported 4337 bundlers
+ - [x] Transeptor
+  
+**Other bundlers coming soon**
 
 ## Installation
 
@@ -54,11 +61,18 @@ docker run -it --rm 4337-in-a-box:v-local --help
 
 ##  Development
 
+### Contracts
+1. `git submodule update --init`
+2. `cd contracts`
+3. `forge compile`
+
+### Running the application
 Run the following command to start the application:
 ```shell
 make run-app
 ```
 
+### Running tests
 To run the tests, execute the following command:
 ```shell
 make test
@@ -67,6 +81,14 @@ make test
 or to run the tests with coverage:
 ```shell
 make test-coverage
+```
+
+### Local Scripts
+Local scripts are stored in the scripts directory. You can run these scripts as needed.
+
+Start local eth node:
+```shell
+make eth
 ```
 
 ##  Contributing
