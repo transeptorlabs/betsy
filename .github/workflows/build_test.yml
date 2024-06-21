@@ -1,0 +1,17 @@
+name: Go Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+      - name: Install dependencies
+        run: |
+          go mod download
+      - name: build
+        run: go build -v ./...
+      - name: test
+        run: go test -v ./...
