@@ -10,7 +10,7 @@ This project structure adheres to standard Go project layouts:
 │       └── main.go
 ├── internal/       # Private application and library code
 ├── contracts/      # Forge smart contracts
-├── pkg/            # Library code that's okay to be used by external applications
+├── version/        # Version information
 ├── scripts/        # Local scripts
 ├── go.mod          # Module definition
 ├── go.sum          # Dependencies checksum
@@ -21,7 +21,6 @@ This project structure adheres to standard Go project layouts:
 
 1. [Go - >= v1.22.4](https://go.dev/doc/install)
 2. [Docker](https://docs.docker.com/engine/install)
-3. [foundry](https://book.getfoundry.sh/getting-started/installation)
 
 ## Supported 4337 bundlers
  - [x] Transeptor
