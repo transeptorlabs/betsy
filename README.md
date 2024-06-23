@@ -4,7 +4,7 @@
 https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 )](https://pkg.go.dev/github.com/transeptorlabs/betsy)
 [![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/betsy)](https://goreportcard.com/report/github.com/transeptorlabs/betsy)
-[![Build](https://github.com/transeptorlabs/betsy/actions/workflows/build.yml/badge.svg?branch=build)](https://github.com/transeptorlabs/betsy/actions/workflows/build.yml/badge.svg?branch=main)
+![build status](https://github.com/transeptorlabs/betsy/actions/workflows/build.yml/badge.svg?branch=main)
 [![Docker Pulls](https://img.shields.io/docker/pulls/transeptorlabs/betsy)](https://img.shields.io/docker/pulls/transeptorlabs/betsy)
 
 
