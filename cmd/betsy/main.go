@@ -7,13 +7,14 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/transeptorlabs/betsy/internal/eth"
+	"github.com/transeptorlabs/betsy/internal/docker"
 	"github.com/transeptorlabs/betsy/internal/server"
 	"github.com/transeptorlabs/betsy/version"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
+	containerManager := docker.NewContainerManager()
 	app := &cli.App{
 		Name:    "Betsy",
 		Version: version.Version,
@@ -68,14 +69,24 @@ func main() {
 			},
 		},
 		Before: func(cCtx *cli.Context) error {
+			fmt.Fprintf(cCtx.App.Writer, "Running preflight checks...\n")
+			containerManager.PullRequiredImages(
+				[]string{"geth", cCtx.String("bundler")},
+			)
 			// TODO: check that docker is installed
-			// TODO: Check in geth image is available if not pull it
 			// TODO: check that geth is not already running
-			fmt.Fprintf(cCtx.App.Writer, "HEEEERE GOES\n")
 			return nil
 		},
 		After: func(cCtx *cli.Context) error {
-			fmt.Fprintf(cCtx.App.Writer, "Phew!\n")
+			fmt.Fprintf(cCtx.App.Writer, "Tearing down dev environnement!\n")
+			ok, err := containerManager.StopRunningContainers()
+			if err != nil {
+				panic(err)
+			}
+			if ok {
+				fmt.Fprintf(cCtx.App.Writer, "All containers stopped!\n")
+			}
+
 			return nil
 		},
 		CommandNotFound: func(cCtx *cli.Context, command string) {
@@ -90,8 +101,16 @@ func main() {
 			return nil
 		},
 		Action: func(cCtx *cli.Context) error {
-			eth.StartGethNode()
 
+			// Run geth in the background
+			containerManager.RunContainerInTheBackground(
+				"geth",
+				strconv.Itoa(cCtx.Int("eth.port")),
+			)
+
+			// TODO: Run the ERC 4337 bundler in the background
+
+			// Run the HTTP server
 			httpServer := server.NewHTTPServer(
 				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
 				cCtx.Bool("debug"),
