@@ -9,7 +9,7 @@ An all in one cli tool to manage ERC 4337 infrastructure for local development a
 1. ETH client(i.e execution client)
    - Forking evm `mainnets` and `testnets`
 2. Default accounts with private keys
-3. Predeployed entrypoint contract(V7)
+3. Predeployed entrypoint contract - [releases/v0.7](https://github.com/eth-infinitism/account-abstraction/tree/releases/v0.7)
 4. ERC 4337 bundler client with 
 5. ERC 4337 memepool/bundle explorer UI
 6. ERC 4337 entrypoint contract UI(stake, unstake, deposit, withdraw)
@@ -41,7 +41,7 @@ make build-docker
 
 Start the container with the following command:  
 ```shell
-docker run -it --rm 4337-in-a-box:v-local --help
+docker run -it --rm besty:v-local --help
 ```
 
 ##  Development
