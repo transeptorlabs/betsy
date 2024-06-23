@@ -3,8 +3,12 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
 	"os"
+	"strconv"
 
+	"github.com/transeptorlabs/4337-in-a-box/internal/eth"
+	"github.com/transeptorlabs/4337-in-a-box/internal/server"
 	"github.com/transeptorlabs/4337-in-a-box/version"
 	"github.com/urfave/cli/v2"
 )
@@ -19,70 +23,54 @@ func main() {
 				Email: "transeptorhq@gmail.com",
 			},
 		},
-		Copyright: "(c) 2024 Transeptor Labs",
-		Usage:     "Manage your 4337 development environment",
-		UsageText: "Manage your 4337 development environment",
-		Commands: []*cli.Command{
-			{
-				Name:        "doo",
-				Aliases:     []string{"do"},
-				Category:    "motion",
-				Usage:       "do the doo",
-				UsageText:   "doo - does the dooing",
-				Description: "no really, there is a lot of dooing to be done",
-				ArgsUsage:   "[arrgh]",
-				Flags: []cli.Flag{
-					&cli.BoolFlag{Name: "forever", Aliases: []string{"forevvarr"}},
-				},
-				Subcommands: []*cli.Command{
-					{
-						Name:   "wop",
-						Action: wopAction,
-					},
-				},
-				SkipFlagParsing: false,
-				HideHelp:        false,
-				Hidden:          false,
-				HelpName:        "doo!",
-				BashComplete: func(cCtx *cli.Context) {
-					fmt.Fprintf(cCtx.App.Writer, "--better\n")
-				},
-				Before: func(cCtx *cli.Context) error {
-					fmt.Fprintf(cCtx.App.Writer, "brace for impact\n")
-					return nil
-				},
-				After: func(cCtx *cli.Context) error {
-					fmt.Fprintf(cCtx.App.Writer, "did we lose anyone?\n")
-					return nil
-				},
-				Action: func(cCtx *cli.Context) error {
-					cCtx.Command.FullName()
-					cCtx.Command.HasName("wop")
-					cCtx.Command.Names()
-					cCtx.Command.VisibleFlags()
-					fmt.Fprintf(cCtx.App.Writer, "dodododododoodododddooooododododooo\n")
-					if cCtx.Bool("forever") {
-						cCtx.Command.Run(cCtx)
-					}
-					return nil
-				},
-				OnUsageError: func(cCtx *cli.Context, err error, isSubcommand bool) error {
-					fmt.Fprintf(cCtx.App.Writer, "for shame\n")
-					return err
-				},
-			},
-		},
+		Copyright:            "(c) 2024 Transeptor Labs",
+		Usage:                "Manage your 4337 development environment",
+		UsageText:            "Manage your 4337 development environment",
 		EnableBashCompletion: true,
 		HideVersion:          false,
 		HideHelp:             false,
 		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:     "debug",
+				Usage:    "Enable debug server",
+				Aliases:  []string{"d"},
+				Value:    false,
+				Required: false,
+				Category: "Http server selection:",
+			},
+			&cli.UintFlag{
+				Name:     "http.port",
+				Usage:    "HTTP server listening port",
+				Required: false,
+				Value:    8080,
+				Category: "Http server selection:",
+			},
+			&cli.UintFlag{
+				Name:     "eth.port",
+				Usage:    "ETH client network port",
+				Required: false,
+				Value:    8545,
+				Category: "ETH client selection:",
+			},
 			&cli.StringFlag{
-				Name:  "lang",
-				Value: "english",
-				Usage: "language for the greeting",
+				Name:     "bundler",
+				Usage:    "ERC 4337 bundler",
+				Required: false,
+				Value:    "transeptor",
+				Category: "ERC 4337 bundler selection:",
+			},
+			&cli.UintFlag{
+				Name:     "bundler.port",
+				Usage:    "ERC 4337 bundler listening port",
+				Required: false,
+				Value:    4337,
+				Category: "ERC 4337 bundler selection:",
 			},
 		},
 		Before: func(cCtx *cli.Context) error {
+			// TODO: check that docker is installed
+			// TODO: Check in geth image is available if not pull it
+			// TODO: check that geth is not already running
 			fmt.Fprintf(cCtx.App.Writer, "HEEEERE GOES\n")
 			return nil
 		},
@@ -102,6 +90,14 @@ func main() {
 			return nil
 		},
 		Action: func(cCtx *cli.Context) error {
+			eth.StartGethNode()
+
+			httpServer := server.NewHTTPServer(
+				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
+				cCtx.Bool("debug"),
+			)
+
+			httpServer.Run()
 			return nil
 		},
 	}
@@ -109,9 +105,4 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func wopAction(cCtx *cli.Context) error {
-	fmt.Fprintf(cCtx.App.Writer, ":wave: over here, eh\n")
-	return nil
 }
