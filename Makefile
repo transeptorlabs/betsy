@@ -8,10 +8,10 @@ eth:
 	./scripts/eth-node.sh
 
 help:
-	$(GORUN) ./cmd/4337-in-a-box/main.go -h
+	$(GORUN) ./cmd/betsy/main.go -h
 
 run-app:
-	$(GORUN) ./cmd/4337-in-a-box/main.go
+	$(GORUN) ./cmd/betsy/main.go
 
 run-test:
 	@echo "Running tests..."
@@ -23,9 +23,9 @@ run-test-coverage:
 	@go tool cover -html=coverage.out
 
 build-source:
-	$(GOBUILD) -o ./bin/4337-in-a-box ./cmd/4337-in-a-box
+	$(GOBUILD) -o ./bin/betsy ./cmd/betsy
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/4337-in-a-box\" to launch 4337-in-a-box."
+	@echo "Run \"$(GOBIN)/betsy\" to launch betsy."
 
 build-docker:
-	docker build -t 4337-in-a-box:v-local .
+	docker build -t betsy:v-local .

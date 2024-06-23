@@ -7,15 +7,15 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/transeptorlabs/4337-in-a-box/internal/eth"
-	"github.com/transeptorlabs/4337-in-a-box/internal/server"
-	"github.com/transeptorlabs/4337-in-a-box/version"
+	"github.com/transeptorlabs/betsy/internal/eth"
+	"github.com/transeptorlabs/betsy/internal/server"
+	"github.com/transeptorlabs/betsy/version"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
 	app := &cli.App{
-		Name:    "4337 In A Box",
+		Name:    "Betsy",
 		Version: version.Version,
 		Authors: []*cli.Author{
 			{
@@ -24,8 +24,8 @@ func main() {
 			},
 		},
 		Copyright:            "(c) 2024 Transeptor Labs",
-		Usage:                "Manage your 4337 development environment",
-		UsageText:            "Manage your 4337 development environment",
+		Usage:                "Your local 4337 development environment",
+		UsageText:            "Your local 4337 development environment",
 		EnableBashCompletion: true,
 		HideVersion:          false,
 		HideHelp:             false,

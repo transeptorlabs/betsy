@@ -1,11 +1,11 @@
 # 4337 In a Box
 
 [![API Reference](
-https://pkg.go.dev/badge/github.com/transeptorlabs/4337-in-a-box
-)](https://pkg.go.dev/github.com/transeptorlabs/4337-in-a-box)
-[![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/4337-in-a-box)](https://goreportcard.com/report/github.com/transeptorlabs/4337-in-a-box)
+https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
+)](https://pkg.go.dev/github.com/transeptorlabs/betsy)
+[![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/betsy)](https://goreportcard.com/report/github.com/transeptorlabs/betsy)
 
-This CLI tool allow you to manage ERC 4337 infrastructure using Docker containers.  An all in one tool to manage ERC 4337 infrastructure for local development and testing. The tool provides:
+An all in one tool to manage ERC 4337 infrastructure for local development and testing. The tool provides:
 1. ETH client(i.e execution client)
    - Forking evm `mainnets` and `testnets`
 2. Default accounts with private keys

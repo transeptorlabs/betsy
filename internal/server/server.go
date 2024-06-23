@@ -36,14 +36,12 @@ func (s *HTTPServer) Run() error {
 
 	healthRoutes := r.Group("/health")
 	healthRoutes.GET("/", func(c *gin.Context) {
-		fmt.Println("Health check")
 		c.JSON(200, gin.H{
 			"status": "ok",
 		})
 	})
 
 	healthRoutes.GET("/ready", func(c *gin.Context) {
-		fmt.Println("Readiness check")
 		c.JSON(200, gin.H{
 			"status": "ready",
 		})

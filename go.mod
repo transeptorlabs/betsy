@@ -1,4 +1,4 @@
-module github.com/transeptorlabs/4337-in-a-box
+module github.com/transeptorlabs/betsy
 
 go 1.22.4
 
