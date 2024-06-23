@@ -1,44 +1,28 @@
 # 4337 In a Box
 
-## Project structure
+[![API Reference](
+https://pkg.go.dev/badge/github.com/transeptorlabs/4337-in-a-box
+)](https://pkg.go.dev/github.com/transeptorlabs/4337-in-a-box)
+[![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/4337-in-a-box)](https://goreportcard.com/report/github.com/transeptorlabs/4337-in-a-box)
 
-This project structure adheres to standard Go project layouts:
-```txt
-4337-in-a-box/
-├── cmd/            # Main applications of the project
-│   └── 4337-in-a-box/    # Application entry point
-│       └── main.go
-├── internal/       # Private application and library code
-├── contracts/      # Forge smart contracts
-├── version/        # Version information
-├── scripts/        # Local scripts
-├── go.mod          # Module definition
-├── go.sum          # Dependencies checksum
-└── README.md       # Project documentation
-```
+This CLI tool allow you to manage ERC 4337 infrastructure using Docker containers.  An all in one tool to manage ERC 4337 infrastructure for local development and testing. The tool provides:
+1. ETH client(i.e execution client)
+   - Forking evm `mainnets` and `testnets`
+2. Default accounts with private keys
+3. Predeployed entrypoint contract(V7)
+4. ERC 4337 bundler client with 
+5. ERC 4337 memepool/bundle explorer UI
+6. ERC 4337 entrypoint contract UI(stake, unstake, deposit, withdraw)
 
-## Requirements
-
-1. [Go - >= v1.22.4](https://go.dev/doc/install)
-2. [Docker](https://docs.docker.com/engine/install)
-
-## Supported 4337 bundlers
- - [x] Transeptor
-  
-**Other bundlers coming soon**
+**Supported ERC 4337 bundlers**
+- [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
+- **Other bundlers coming soon**
 
 ## Installation
 
-### Clone the Repository
-```shell
-git clone https://github.com/transeptorlabs/4337-in-a-box.git
-cd 4337-in-a-box
-```
-
-### Initialize Go Module
-```shell
-go mod tidy
-```
+**Requirements**:
+1. [Go - >= v1.22.4](https://go.dev/doc/install)
+2. [Docker](https://docs.docker.com/engine/install)
 
 ### Build from the source
 To build the project from the source code, run:
@@ -60,11 +44,6 @@ docker run -it --rm 4337-in-a-box:v-local --help
 
 ##  Development
 
-### Contracts
-1. `git submodule update --init`
-2. `cd contracts`
-3. `forge compile`
-
 ### Running the application
 Run the following command to start the application:
 ```shell
@@ -80,14 +59,6 @@ make test
 or to run the tests with coverage:
 ```shell
 make test-coverage
-```
-
-### Local Scripts
-Local scripts are stored in the scripts directory. You can run these scripts as needed.
-
-Start local eth node:
-```shell
-make eth
 ```
 
 ##  Contributing
