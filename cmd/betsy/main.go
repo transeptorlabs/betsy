@@ -1,20 +1,36 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
 	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
+	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/transeptorlabs/betsy/internal/docker"
 	"github.com/transeptorlabs/betsy/internal/server"
+	"github.com/transeptorlabs/betsy/logger"
 	"github.com/transeptorlabs/betsy/version"
 	"github.com/urfave/cli/v2"
 )
 
 func main() {
-	containerManager := docker.NewContainerManager()
+	var err error
+	log.Logger, err = logger.GetLogger()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize logger")
+	}
+
+	containerManager, err := docker.NewContainerManager()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize container manager")
+	}
+
 	app := &cli.App{
 		Name:    "Betsy",
 		Version: version.Version,
@@ -69,24 +85,23 @@ func main() {
 			},
 		},
 		Before: func(cCtx *cli.Context) error {
-			fmt.Fprintf(cCtx.App.Writer, "Running preflight checks...\n")
-			containerManager.PullRequiredImages(
+			log.Info().Msgf("Running preflight checks...")
+			_, err := containerManager.PullRequiredImages(
 				[]string{"geth", cCtx.String("bundler")},
 			)
-			// TODO: check that docker is installed
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to pull required images")
+			}
+			// TODO: check that docker is installed cCtx.String("bundler")
 			// TODO: check that geth is not already running
 			return nil
 		},
 		After: func(cCtx *cli.Context) error {
-			fmt.Fprintf(cCtx.App.Writer, "Tearing down dev environnement!\n")
-			ok, err := containerManager.StopRunningContainers()
+			log.Info().Msgf("Tearing down dev environnement!\n")
+			_, err := containerManager.StopRunningContainers()
 			if err != nil {
-				panic(err)
+				log.Fatal().Err(err).Msg("Failed to stop running containers")
 			}
-			if ok {
-				fmt.Fprintf(cCtx.App.Writer, "All containers stopped!\n")
-			}
-
 			return nil
 		},
 		CommandNotFound: func(cCtx *cli.Context, command string) {
@@ -101,8 +116,11 @@ func main() {
 			return nil
 		},
 		Action: func(cCtx *cli.Context) error {
+			// Create a context that will be canceled when an interrupt signal is caught
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
 
-			// Run geth in the background
+			// Run geth in the background using the container manager
 			containerManager.RunContainerInTheBackground(
 				"geth",
 				strconv.Itoa(cCtx.Int("eth.port")),
@@ -110,18 +128,34 @@ func main() {
 
 			// TODO: Run the ERC 4337 bundler in the background
 
-			// Run the HTTP server
+			// Start the server in a goroutine
 			httpServer := server.NewHTTPServer(
 				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
 				cCtx.Bool("debug"),
 			)
+			go func() {
+				if err := httpServer.Run(); err != nil && err != http.ErrServerClosed {
+					log.Fatal().Err(err).Msg("HTTP server failed")
+				}
+			}()
 
-			httpServer.Run()
+			<-ctx.Done()
+
+			// Create a context with timeout to allow the server to shut down gracefully
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if err := httpServer.Shutdown(shutdownCtx); err != nil {
+				log.Fatal().Err(err).Msg("Server shutdown failed")
+			} else {
+				log.Info().Msg("Server shutdown completed")
+			}
+
 			return nil
 		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Failed to run app")
 	}
 }

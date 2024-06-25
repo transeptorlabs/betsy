@@ -3,6 +3,7 @@ package docker
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"context"
 	"io"
@@ -12,11 +13,14 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/rs/zerolog/log"
 )
 
-// ContainerManger manages containers
-type ContainerManger struct {
+// ContainerManager manages containers
+type ContainerManager struct {
 	supportedImages map[string]ContainerDetails
+	client          *client.Client
+	ctx             context.Context
 }
 
 // ContainerDetails contains details of a container
@@ -28,21 +32,22 @@ type ContainerDetails struct {
 	Port        string
 }
 
-// NewContainerManager creates a new container manager
-func NewContainerManager() *ContainerManger {
-	return &ContainerManger{
+// NewContainerManagerr creates a new container manager
+func NewContainerManager() (*ContainerManager, error) {
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, err
+	}
+
+	return &ContainerManager{
 		supportedImages: map[string]ContainerDetails{
 			"transeptor": {
-				imageName:   "transeptorlabs/bundler:latest",
-				ContainerID: "",
-				IsRunning:   false,
-				Port:        "",
+				imageName: "transeptorlabs/bundler:0.6.1-alpha.0",
+				IsRunning: false,
 			},
 			"geth": {
-				imageName:   "ethereum/client-go:latest",
-				ContainerID: "",
-				IsRunning:   false,
-				Port:        "",
+				imageName: "ethereum/client-go:latest",
+				IsRunning: false,
 				Cmd: []string{
 					"--verbosity", "1",
 					"--http.vhosts", "'*,localhost,host.docker.internal'",
@@ -59,7 +64,14 @@ func NewContainerManager() *ContainerManger {
 				},
 			},
 		},
-	}
+		client: cli,
+		ctx:    context.Background(),
+	}, nil
+}
+
+// Close closes the Docker client
+func (cm *ContainerManager) Close() error {
+	return cm.client.Close()
 }
 
 func SmokeTestDockerAPI() {
@@ -106,64 +118,53 @@ func SmokeTestDockerAPI() {
 }
 
 // ListAllImages lists all images available in the Docker environment
-func (cm *ContainerManger) ListRunningContainer() {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+func (cm *ContainerManager) ListRunningContainer() error {
+	containers, err := cm.client.ContainerList(cm.ctx, container.ListOptions{})
 	if err != nil {
-		panic(err)
-	}
-	defer cli.Close()
-
-	containers, err := cli.ContainerList(ctx, container.ListOptions{})
-	if err != nil {
-		panic(err)
+		return err
 	}
 
 	for _, container := range containers {
-		fmt.Println(container.ID)
+		log.Info().Msgf("Container ID: %s\n", container.ID)
 	}
+
+	return nil
 }
 
 // PullRequiredImages checks if required images are available and pulls them if not
-func (cm *ContainerManger) PullRequiredImages(requiredImages []string) (bool, error) {
+func (cm *ContainerManager) PullRequiredImages(requiredImages []string) (bool, error) {
 	for _, requiredImage := range requiredImages {
 		if _, ok := cm.supportedImages[requiredImage]; !ok {
 			return false, fmt.Errorf("Image %s is not supported", requiredImage)
 		}
 	}
 
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
-
-	images, err := cli.ImageList(ctx, image.ListOptions{})
-	if err != nil {
-		return false, err
-	}
-
-	foundImageName := make(map[string]bool)
+	requiredImageFoundCheck := make(map[string]bool)
+	requiredImageNames := make([]string, 0)
 	for _, requiredImage := range requiredImages {
-		foundImageName[requiredImage] = false
+		requiredImageFoundCheck[cm.supportedImages[requiredImage].imageName] = false
+		requiredImageNames = append(requiredImageNames, cm.supportedImages[requiredImage].imageName)
+	}
+	log.Info().Msgf("Required images(pre-check): %v", requiredImageFoundCheck)
+
+	localImages, err := cm.client.ImageList(cm.ctx, image.ListOptions{})
+	if err != nil {
+		return false, err
 	}
 
-	// Check if required images are found
-	for _, image := range images {
-		for _, requiredImage := range requiredImages {
-			fmt.Println(image.RepoTags)
-			if requiredImage == image.RepoTags[0] {
-				fmt.Println("Image found:", image.RepoTags[0])
-				foundImageName[requiredImage] = true
+	// Check if required images are found locally and update the check map with a caveat for the latest tag to ensure it is always pulled
+	for _, image := range localImages {
+		for _, requiredImageName := range requiredImageNames {
+			if requiredImageName == image.RepoTags[0] && !strings.HasSuffix(requiredImageName, "latest") {
+				requiredImageFoundCheck[requiredImageName] = true
 			}
 		}
 	}
+	log.Info().Msgf("Required images(post-check): %v", requiredImageFoundCheck)
 
-	// Pull images that are not found
-	for imageName, found := range foundImageName {
+	// Pull required images that are not found
+	for imageName, found := range requiredImageFoundCheck {
 		if !found {
-			fmt.Println("Image not found, pulling:", imageName)
 			_, err := cm.doPullImage(imageName)
 			if err != nil {
 				return false, err
@@ -175,38 +176,26 @@ func (cm *ContainerManger) PullRequiredImages(requiredImages []string) (bool, er
 }
 
 // doPullImage pulls a Docker image given its name
-func (cm *ContainerManger) doPullImage(imageName string) (bool, error) {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
-
-	reader, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+func (cm *ContainerManager) doPullImage(imageName string) (bool, error) {
+	log.Info().Msgf("Attempting to pull image: %s", imageName)
+	reader, err := cm.client.ImagePull(cm.ctx, imageName, image.PullOptions{})
 	if err != nil {
 		return false, err
 	}
 	io.Copy(os.Stdout, reader)
 
+	log.Info().Msgf("Successfully pulled image: %s", imageName)
 	return true, nil
 }
 
 // RunContainerInTheBackground runs a Docker container in the background
-func (cm *ContainerManger) RunContainerInTheBackground(image string, port string) (bool, error) {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
-
+func (cm *ContainerManager) RunContainerInTheBackground(image string, port string) (bool, error) {
 	imageFound, ok := cm.supportedImages[image]
 	if !ok {
 		return false, fmt.Errorf("Image %s is not supported", image)
 	}
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
+	resp, err := cm.client.ContainerCreate(cm.ctx, &container.Config{
 		Image:    imageFound.imageName,
 		Hostname: "localhost:" + port,
 	}, nil, nil, nil, "")
@@ -214,7 +203,7 @@ func (cm *ContainerManger) RunContainerInTheBackground(image string, port string
 		return false, err
 	}
 
-	if err := cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
+	if err := cm.client.ContainerStart(cm.ctx, resp.ID, container.StartOptions{}); err != nil {
 		return false, err
 	}
 
@@ -224,28 +213,22 @@ func (cm *ContainerManger) RunContainerInTheBackground(image string, port string
 		IsRunning:   true,
 		Port:        port,
 	}
-	fmt.Println(resp.ID, cm.supportedImages[image], "started successfully.")
 
+	log.Info().Msgf("Container ID successfully started: %s\n", resp.ID)
 	return true, nil
 }
 
 // StopRunningContainers stops all running containers that are supported
-func (cm *ContainerManger) StopRunningContainers() (bool, error) {
-	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return false, err
-	}
-	defer cli.Close()
-
+func (cm *ContainerManager) StopRunningContainers() (bool, error) {
 	for _, containerDetails := range cm.supportedImages {
 		if containerDetails.IsRunning {
-			fmt.Print("Stopping container ", containerDetails.ContainerID, "... ")
+			log.Info().Msgf("Attempting to stop container %s", containerDetails.ContainerID)
 			noWaitTimeout := 0 // to not wait for the container to exit gracefully
-			if err := cli.ContainerStop(ctx, containerDetails.ContainerID, container.StopOptions{Timeout: &noWaitTimeout}); err != nil {
+
+			if err := cm.client.ContainerStop(cm.ctx, containerDetails.ContainerID, container.StopOptions{Timeout: &noWaitTimeout}); err != nil {
 				return false, err
 			}
-			fmt.Println("Successfully stopped.")
+			log.Info().Msgf("Successfully stopped container %s", containerDetails.ContainerID)
 		}
 	}
 

@@ -1,9 +1,11 @@
 package server
 
 import (
-	"fmt"
+	"context"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -14,6 +16,7 @@ const (
 type HTTPServer struct {
 	listenHost string
 	debug      bool
+	server     *http.Server
 }
 
 // NewHTTPServer creates a new HTTP server.
@@ -27,7 +30,7 @@ func NewHTTPServer(listenHost string, debug bool) *HTTPServer {
 // Run starts the HTTP server.
 func (s *HTTPServer) Run() error {
 	if s.debug {
-		fmt.Println("Debug mode enabled")
+		log.Debug().Msg("Debug mode enabled")
 	} else {
 		gin.SetMode(gin.DebugMode)
 	}
@@ -47,7 +50,18 @@ func (s *HTTPServer) Run() error {
 		})
 	})
 
-	fmt.Printf("HTTP Server started on http://%v\n", s.listenHost)
+	s.server = &http.Server{
+		Addr:    s.listenHost,
+		Handler: r,
+	}
 
-	return r.Run(s.listenHost)
+	log.Info().Msgf("HTTP Server started on http://%v\n", s.listenHost)
+
+	return s.server.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the HTTP server.
+func (s *HTTPServer) Shutdown(ctx context.Context) error {
+	log.Info().Msg("Shutting down HTTP server...")
+	return s.server.Shutdown(ctx)
 }
