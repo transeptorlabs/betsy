@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/go-connections/nat"
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -25,11 +26,12 @@ type ContainerManager struct {
 
 // ContainerDetails contains details of a container
 type ContainerDetails struct {
-	imageName   string
-	ContainerID string
-	IsRunning   bool
-	Cmd         []string
-	Port        string
+	imageName     string
+	containerName string
+	ContainerID   string
+	IsRunning     bool
+	Cmd           []string
+	ExposedPorts  nat.PortSet
 }
 
 // NewContainerManagerr creates a new container manager
@@ -42,26 +44,34 @@ func NewContainerManager() (*ContainerManager, error) {
 	return &ContainerManager{
 		supportedImages: map[string]ContainerDetails{
 			"transeptor": {
-				imageName: "transeptorlabs/bundler:0.6.1-alpha.0",
-				IsRunning: false,
+				containerName: "betsy-transeptor",
+				ContainerID:   "",
+				imageName:     "transeptorlabs/bundler:0.6.1-alpha.0",
+				IsRunning:     false,
+				Cmd:           []string{},
+				ExposedPorts:  nil,
 			},
 			"geth": {
-				imageName: "ethereum/client-go:latest",
-				IsRunning: false,
+				containerName: "betsy-geth",
+				ContainerID:   "",
+				imageName:     "ethereum/client-go:latest",
+				IsRunning:     false,
 				Cmd: []string{
-					"--verbosity", "1",
-					"--http.vhosts", "'*,localhost,host.docker.internal'",
-					"--http",
-					"--http.api", "eth,net,web3,debug",
-					"--http.corsdomain", "'*'",
-					"--http.addr", "0.0.0.0",
-					"--nodiscover", "--maxpeers", "0", "--mine",
-					"--networkid", "1337",
 					"--dev",
+					"--nodiscover",
+					"--http",
+					"--dev.gaslimit", "12000000",
+					"--http.api", "eth,net,web3,debug",
+					"--http.corsdomain", "*://localhost:*",
+					"--http.vhosts", "*,localhost,host.docker.internal",
+					"--http.addr", "0.0.0.0",
+					"--networkid", "1337",
+					"--verbosity", "1",
+					"--maxpeers", "0",
 					"--allow-insecure-unlock",
 					"--rpc.allow-unprotected-txs",
-					"--dev.gaslimit", "12000000",
 				},
+				ExposedPorts: nil,
 			},
 		},
 		client: cli,
@@ -188,17 +198,34 @@ func (cm *ContainerManager) doPullImage(imageName string) (bool, error) {
 	return true, nil
 }
 
-// RunContainerInTheBackground runs a Docker container in the background
-func (cm *ContainerManager) RunContainerInTheBackground(image string, port string) (bool, error) {
+// RunContainerInTheBackground runs a Docker container in the background given its image and host port to bind
+func (cm *ContainerManager) RunContainerInTheBackground(image string, hostPort string) (bool, error) {
 	imageFound, ok := cm.supportedImages[image]
 	if !ok {
 		return false, fmt.Errorf("Image %s is not supported", image)
 	}
 
-	resp, err := cm.client.ContainerCreate(cm.ctx, &container.Config{
-		Image:    imageFound.imageName,
-		Hostname: "localhost:" + port,
-	}, nil, nil, nil, "")
+	constinerPort := hostPort + "/tcp"
+	config := &container.Config{
+		Image: imageFound.imageName,
+		Cmd:   imageFound.Cmd,
+		ExposedPorts: nat.PortSet{
+			nat.Port(constinerPort): struct{}{},
+		},
+	}
+
+	hostConfig := &container.HostConfig{
+		PortBindings: nat.PortMap{
+			nat.Port(constinerPort): []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0", // setting to 0.0.0.0 means that the port is exposed on all network interfaces on host machine
+					HostPort: hostPort,
+				},
+			},
+		},
+	}
+
+	resp, err := cm.client.ContainerCreate(cm.ctx, config, hostConfig, nil, nil, imageFound.containerName)
 	if err != nil {
 		return false, err
 	}
@@ -207,19 +234,23 @@ func (cm *ContainerManager) RunContainerInTheBackground(image string, port strin
 		return false, err
 	}
 
+	// Update the container details
+	log.Info().Msgf("Container ID successfully started: %s\n", resp.ID)
 	cm.supportedImages[image] = ContainerDetails{
-		imageName:   imageFound.imageName,
+		imageName: imageFound.imageName,
+		Cmd:       imageFound.Cmd,
+		ExposedPorts: nat.PortSet{
+			nat.Port(constinerPort): struct{}{},
+		},
 		ContainerID: resp.ID,
 		IsRunning:   true,
-		Port:        port,
 	}
 
-	log.Info().Msgf("Container ID successfully started: %s\n", resp.ID)
 	return true, nil
 }
 
-// StopRunningContainers stops all running containers that are supported
-func (cm *ContainerManager) StopRunningContainers() (bool, error) {
+// StopAndRemoveRunningContainers stops all running containers that are supported
+func (cm *ContainerManager) StopAndRemoveRunningContainers() (bool, error) {
 	for _, containerDetails := range cm.supportedImages {
 		if containerDetails.IsRunning {
 			log.Info().Msgf("Attempting to stop container %s", containerDetails.ContainerID)
@@ -229,6 +260,11 @@ func (cm *ContainerManager) StopRunningContainers() (bool, error) {
 				return false, err
 			}
 			log.Info().Msgf("Successfully stopped container %s", containerDetails.ContainerID)
+
+			if err := cm.client.ContainerRemove(cm.ctx, containerDetails.ContainerID, container.RemoveOptions{}); err != nil {
+				return false, err
+			}
+			log.Info().Msgf("Successfully removed container %s", containerDetails.ContainerID)
 		}
 	}
 

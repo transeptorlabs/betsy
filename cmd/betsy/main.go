@@ -41,8 +41,8 @@ func main() {
 			},
 		},
 		Copyright:            "(c) 2024 Transeptor Labs",
-		Usage:                "Your local 4337 development environment",
-		UsageText:            "Your local 4337 development environment",
+		Usage:                "Your local Account Abstraction development environment toolkit",
+		UsageText:            "Your local Account Abstraction development environment toolkit",
 		EnableBashCompletion: true,
 		HideVersion:          false,
 		HideHelp:             false,
@@ -92,15 +92,15 @@ func main() {
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to pull required images")
 			}
-			// TODO: check that docker is installed cCtx.String("bundler")
+			// TODO: check that docker is installed
 			// TODO: check that geth is not already running
 			return nil
 		},
 		After: func(cCtx *cli.Context) error {
 			log.Info().Msgf("Tearing down dev environnement!\n")
-			_, err := containerManager.StopRunningContainers()
+			_, err := containerManager.StopAndRemoveRunningContainers()
 			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to stop running containers")
+				log.Fatal().Err(err).Msg("Failed to tear down dev environnement!")
 			}
 			return nil
 		},
@@ -112,7 +112,7 @@ func main() {
 				return err
 			}
 
-			fmt.Fprintf(cCtx.App.Writer, "WRONG: %#v\n", err)
+			log.Error().Err(err).Msgf("WRONG: %#v\n", err)
 			return nil
 		},
 		Action: func(cCtx *cli.Context) error {
@@ -120,13 +120,16 @@ func main() {
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			// Run geth in the background using the container manager
 			containerManager.RunContainerInTheBackground(
 				"geth",
 				strconv.Itoa(cCtx.Int("eth.port")),
 			)
 
-			// TODO: Run the ERC 4337 bundler in the background
+			// TODO: wait until eth node become health before starting the ERC 4337 bundler in the background
+			// containerManager.RunContainerInTheBackground(
+			// 	cCtx.String("bundler"),
+			// 	strconv.Itoa(cCtx.Int("bundler.port")),
+			// )
 
 			// Start the server in a goroutine
 			httpServer := server.NewHTTPServer(
