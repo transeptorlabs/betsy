@@ -3,9 +3,9 @@ GORUN = go run
 GOBIN = ./bin
 GOTEST = go test
 
-eth:
-	chmod +x ./scripts/eth-node.sh
-	./scripts/eth-node.sh
+coinbase-account:
+	chmod +x ./scripts/get-coinbase.sh
+	./scripts/get-coinbase.sh
 
 help:
 	$(GORUN) ./cmd/betsy/main.go -h

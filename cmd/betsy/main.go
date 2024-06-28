@@ -31,6 +31,8 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize container manager")
 	}
 
+	parentContext := context.Background()
+
 	app := &cli.App{
 		Name:    "Betsy",
 		Version: version.Version,
@@ -87,6 +89,7 @@ func main() {
 		Before: func(cCtx *cli.Context) error {
 			log.Info().Msgf("Running preflight checks...")
 			_, err := containerManager.PullRequiredImages(
+				parentContext,
 				[]string{"geth", cCtx.String("bundler")},
 			)
 			if err != nil {
@@ -98,10 +101,16 @@ func main() {
 		},
 		After: func(cCtx *cli.Context) error {
 			log.Info().Msgf("Tearing down dev environnement!\n")
-			_, err := containerManager.StopAndRemoveRunningContainers()
+			_, err := containerManager.StopAndRemoveRunningContainers(parentContext)
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to tear down dev environnement!")
 			}
+
+			containerManager.Close()
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to close container manager")
+			}
+
 			return nil
 		},
 		CommandNotFound: func(cCtx *cli.Context, command string) {
@@ -117,19 +126,30 @@ func main() {
 		},
 		Action: func(cCtx *cli.Context) error {
 			// Create a context that will be canceled when an interrupt signal is caught
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			ctx, stop := signal.NotifyContext(parentContext, os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			containerManager.RunContainerInTheBackground(
+			// Wait until the eth node container is ready before starting the bundler
+			readyChan := make(chan struct{})
+			ctxWithReadyChan := context.WithValue(ctx, docker.EthNodeReady, readyChan)
+
+			go containerManager.RunContainerInTheBackground(
+				ctxWithReadyChan,
 				"geth",
 				strconv.Itoa(cCtx.Int("eth.port")),
 			)
 
-			// TODO: wait until eth node become health before starting the ERC 4337 bundler in the background
+			select {
+			case <-readyChan:
+				log.Info().Msg("ETH node is ready, starting bundler...")
 			// containerManager.RunContainerInTheBackground(
 			// 	cCtx.String("bundler"),
 			// 	strconv.Itoa(cCtx.Int("bundler.port")),
 			// )
+			case <-ctx.Done():
+				log.Info().Msg("Received signal, shutting down...")
+				return nil
+			}
 
 			// Start the server in a goroutine
 			httpServer := server.NewHTTPServer(
