@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/go-connections/nat"
+	"github.com/transeptorlabs/betsy/wallet"
 
 	"github.com/docker/docker/client"
 	"github.com/rs/zerolog/log"
@@ -65,7 +66,7 @@ func NewContainerManager() (*ContainerManager, error) {
 					"--network", "http://host.docker.internal:" + EthNodePortPlaceHolder,
 				},
 				Env: []string{
-					"TRANSEPTOR_MNEMONIC=test test test test test test test test test test test junk",
+					"TRANSEPTOR_MNEMONIC=" + wallet.DefaultSeedPhrase,
 					"TRANSEPTOR_BENEFICIARY=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
 				},
 				ExposedPorts: nil,

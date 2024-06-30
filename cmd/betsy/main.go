@@ -14,6 +14,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/transeptorlabs/betsy/internal/docker"
 	"github.com/transeptorlabs/betsy/internal/server"
+	"github.com/transeptorlabs/betsy/internal/utils"
 	"github.com/transeptorlabs/betsy/logger"
 	"github.com/transeptorlabs/betsy/version"
 	"github.com/transeptorlabs/betsy/wallet"
@@ -121,6 +122,11 @@ func main() {
 				log.Fatal().Err(err).Msg("Failed to close container manager")
 			}
 
+			err = utils.RemoveDevWallets()
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to remove wallets")
+			}
+
 			return nil
 		},
 		CommandNotFound: func(cCtx *cli.Context, command string) {
@@ -163,7 +169,7 @@ func main() {
 			case <-readyChan:
 				log.Info().Msg("ETH node is ready, starting bundler and creating wallet...")
 
-				// TODO: create wallet
+				// create dev wallet
 				bestyWallet, err := wallet.NewWallet(
 					ctx,
 					strconv.Itoa(cCtx.Int("eth.port")),
@@ -173,7 +179,7 @@ func main() {
 					log.Err(err).Msg("Failed to create wallet")
 					return nil
 				}
-				log.Info().Msgf("Betsy wallet created: %+v", bestyWallet)
+				bestyWallet.PrintDevAccounts()
 
 				_, err = containerManager.RunContainerInTheBackground(
 					ctxWithReadyChan,
