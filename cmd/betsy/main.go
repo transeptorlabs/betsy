@@ -16,6 +16,7 @@ import (
 	"github.com/transeptorlabs/betsy/internal/server"
 	"github.com/transeptorlabs/betsy/logger"
 	"github.com/transeptorlabs/betsy/version"
+	"github.com/transeptorlabs/betsy/wallet"
 	"github.com/urfave/cli/v2"
 )
 
@@ -88,6 +89,16 @@ func main() {
 		},
 		Before: func(cCtx *cli.Context) error {
 			log.Info().Msgf("Running preflight checks...")
+
+			// Check that docker is installed
+			ok := containerManager.IsDockerInstalled()
+			if !ok {
+				log.Fatal().Err(err).Msg("Docker needs to be installed to use Besty!")
+			}
+
+			// TODO: check that geth is not already running
+
+			// Pull required images
 			_, err := containerManager.PullRequiredImages(
 				parentContext,
 				[]string{"geth", cCtx.String("bundler")},
@@ -95,8 +106,7 @@ func main() {
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to pull required images")
 			}
-			// TODO: check that docker is installed
-			// TODO: check that geth is not already running
+
 			return nil
 		},
 		After: func(cCtx *cli.Context) error {
@@ -131,21 +141,49 @@ func main() {
 
 			// Wait until the eth node container is ready before starting the bundler
 			readyChan := make(chan struct{})
+			readyErrorChan := make(chan error)
+
 			ctxWithReadyChan := context.WithValue(ctx, docker.EthNodeReady, readyChan)
 
-			go containerManager.RunContainerInTheBackground(
-				ctxWithReadyChan,
-				"geth",
-				strconv.Itoa(cCtx.Int("eth.port")),
-			)
+			go func() {
+				_, err := containerManager.RunContainerInTheBackground(
+					ctxWithReadyChan,
+					"geth",
+					strconv.Itoa(cCtx.Int("eth.port")),
+				)
+				if err != nil {
+					readyErrorChan <- err
+				}
+			}()
 
 			select {
+			case err := <-readyErrorChan:
+				log.Err(err).Msg("Failed to run ETH node conatiner")
+				return nil
 			case <-readyChan:
-				log.Info().Msg("ETH node is ready, starting bundler...")
-			// containerManager.RunContainerInTheBackground(
-			// 	cCtx.String("bundler"),
-			// 	strconv.Itoa(cCtx.Int("bundler.port")),
-			// )
+				log.Info().Msg("ETH node is ready, starting bundler and creating wallet...")
+
+				// TODO: create wallet
+				bestyWallet, err := wallet.NewWallet(
+					ctx,
+					strconv.Itoa(cCtx.Int("eth.port")),
+					containerManager.CoinbaseKeystoreFile,
+				)
+				if err != nil {
+					log.Err(err).Msg("Failed to create wallet")
+					return nil
+				}
+				log.Info().Msgf("Betsy wallet created: %+v", bestyWallet)
+
+				_, err = containerManager.RunContainerInTheBackground(
+					ctxWithReadyChan,
+					cCtx.String("bundler"),
+					strconv.Itoa(cCtx.Int("bundler.port")),
+				)
+				if err != nil {
+					log.Err(err).Msgf("Failed to run %s bundler conatiner", cCtx.String("bundler"))
+					return nil
+				}
 			case <-ctx.Done():
 				log.Info().Msg("Received signal, shutting down...")
 				return nil
