@@ -23,6 +23,11 @@ import (
 const EthNodeReady = "ethNodeReady"
 const EthNodePortPlaceHolder = "$ETH_PORT"
 
+const BundlerNodeWalletDetails = "bundlerNodeWalletDetails"
+const BundlerNodeEPAddressPlaceHolder = "$ENTRYPOINT_ADDRESS"
+const BundlerNodeBeneficiaryAddressPlaceHolder = "$BENEFICIARY"
+const BundlerNodeMnemonicPlaceHolder = "$MNEMONIC"
+
 // ContainerManager manages containers
 type ContainerManager struct {
 	supportedImages      map[string]ContainerDetails
@@ -66,8 +71,9 @@ func NewContainerManager() (*ContainerManager, error) {
 					"--network", "http://host.docker.internal:" + EthNodePortPlaceHolder,
 				},
 				Env: []string{
-					"TRANSEPTOR_MNEMONIC=" + wallet.DefaultSeedPhrase,
-					"TRANSEPTOR_BENEFICIARY=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+					"TRANSEPTOR_MNEMONIC=" + BundlerNodeMnemonicPlaceHolder,
+					"TRANSEPTOR_BENEFICIARY=" + BundlerNodeBeneficiaryAddressPlaceHolder,
+					"TRANSEPTOR_ENTRYPOINT_ADDRESS=" + BundlerNodeEPAddressPlaceHolder,
 				},
 				ExposedPorts: nil,
 				NodeType:     "bundler",
@@ -200,14 +206,35 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 
 	// Update bundler node cmd with ethnode port
 	if imageFound.NodeType == "bundler" {
-		foundIndex := 0
+		foundIndexPort := 0
 		for index, item := range imageFound.Cmd {
-			if strings.HasSuffix(item, "ETH_PORT") {
-				foundIndex = index
+			if strings.HasSuffix(item, EthNodePortPlaceHolder) {
+				foundIndexPort = index
 				break
 			}
 		}
-		imageFound.Cmd[foundIndex] = strings.Replace(imageFound.Cmd[foundIndex], EthNodePortPlaceHolder, cm.EthNodePort, 1)
+		imageFound.Cmd[foundIndexPort] = strings.Replace(imageFound.Cmd[foundIndexPort], EthNodePortPlaceHolder, cm.EthNodePort, 1)
+
+		bundlerDetails := ctx.Value(BundlerNodeWalletDetails).(wallet.BundlerWalletDetails)
+		foundIndexBeneficiary := 0
+		foundIndexMnemonic := 0
+		foundIndexEntryPointAddress := 0
+		for index, item := range imageFound.Env {
+			if strings.HasSuffix(item, BundlerNodeBeneficiaryAddressPlaceHolder) {
+				foundIndexBeneficiary = index
+			}
+
+			if strings.Contains(item, BundlerNodeMnemonicPlaceHolder) {
+				foundIndexMnemonic = index
+			}
+
+			if strings.Contains(item, BundlerNodeEPAddressPlaceHolder) {
+				foundIndexEntryPointAddress = index
+			}
+		}
+		imageFound.Env[foundIndexEntryPointAddress] = strings.Replace(imageFound.Env[foundIndexEntryPointAddress], BundlerNodeEPAddressPlaceHolder, bundlerDetails.EntryPointAddress.Hex(), 1)
+		imageFound.Env[foundIndexBeneficiary] = strings.Replace(imageFound.Env[foundIndexBeneficiary], BundlerNodeBeneficiaryAddressPlaceHolder, bundlerDetails.Beneficiary.Hex(), 1)
+		imageFound.Env[foundIndexMnemonic] = strings.Replace(imageFound.Env[foundIndexMnemonic], BundlerNodeMnemonicPlaceHolder, bundlerDetails.Mnemonic, 1)
 	}
 
 	constinerPort := hostPort + "/tcp"
@@ -276,7 +303,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 		}
 
 		log.Info().Msgf("Attempting to find eth.coinbase keystore file at /tmp on container: %s", resp.ID)
-		coinbaseKeystoreFile, err := findCoinbaseKeystoreFileNative(resp.ID, "tmp")
+		coinbaseKeystoreFile, err := findCoinbaseKeystoreFile(resp.ID, "tmp")
 		if err != nil {
 			return false, err
 		}
@@ -290,119 +317,6 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 	}
 
 	return true, nil
-}
-
-// TODO: Fix the EOF error when runing the ls command on the container
-// findCoinbaseKeystoreFile executes the ls command to find keystore file for the temporary pre-allocated developer account available and unlocked as eth.coinbase(using docker api client)
-func findCoinbaseKeystoreFile(ctx context.Context, client *client.Client, containerID string, dir string) (string, error) {
-	execConfig := container.ExecOptions{
-		Cmd:          []string{"ls", dir},
-		AttachStdout: true,
-		AttachStderr: true,
-	}
-	execIDResp, err := client.ContainerExecCreate(ctx, containerID, execConfig)
-	if err != nil {
-		return "", err
-	}
-
-	respAttach, err := client.ContainerExecAttach(ctx, execIDResp.ID, container.ExecStartOptions{})
-	if err != nil {
-		return "", err
-	}
-	defer respAttach.Close()
-
-	output := make([]byte, 1024)
-	n, err := respAttach.Reader.Read(output)
-	if err != nil {
-		fmt.Println("Got a error when listing:", err)
-		return "", err
-	}
-
-	fmt.Printf("Files in /tmp:\n%s\n", string(output[:n]))
-	return string(output[:n]), nil
-}
-
-// findCoinbaseKeystoreFileNative executes the ls command to find keystore file for the temporary pre-allocated developer account available and unlocked as eth.coinbase(using docker exec)
-func findCoinbaseKeystoreFileNative(containerID string, dir string) (string, error) {
-	cmd := exec.Command("docker", "exec", containerID, "ls", dir)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-
-	// Print the output for debugging purposes
-	fmt.Println("Files in directory:", dir)
-	fmt.Println(string(output))
-
-	// Recursive find
-	fileList := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, file := range fileList {
-		if strings.Contains(file, "UTC") {
-			foundPath := strings.TrimSuffix(dir, "/") + "/" + file
-			log.Info().Msgf("Found keystore file path: %s", foundPath)
-
-			// Copy the found file to local ./wallet/tmp/coinbase directory
-			if err := copyFileFromContainer(containerID, foundPath, "./wallet/tmp/coinbase"); err != nil {
-				log.Error().Err(err).Msg("Error copying file from container")
-				return "", err
-			}
-
-			return file, nil
-		}
-	}
-
-	// If not found, recursively search deeper
-	for _, file := range fileList {
-		if !strings.Contains(file, ".") { // Assuming files without dots are directories
-			newDir := strings.TrimSuffix(dir, "/") + "/" + file
-			log.Info().Msgf("Not found, searching deeper in directory: %s", newDir)
-			foundPath, err := findCoinbaseKeystoreFileNative(containerID, newDir)
-			if err == nil {
-				return foundPath, nil
-			}
-		}
-	}
-
-	// Keystore file not found
-	log.Warn().Msgf("Keystore file not found in directory: %s", dir)
-	return "", fmt.Errorf("keystore file not found in directory: %s", dir)
-}
-
-func copyFileFromContainer(containerID, filePath string, destDir string) error {
-	// Determine the destination path on the host machine
-	destPath := filepath.Join(destDir, filepath.Base(filePath))
-
-	// Ensure the destination directory exists
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		log.Error().Err(err).Msgf("Error creating directory %s", destDir)
-		return err
-	}
-
-	// Open a reader to read the file contents from the Docker container
-	cmd := exec.Command("docker", "exec", containerID, "cat", filePath)
-	output, err := cmd.Output()
-	if err != nil {
-		log.Error().Err(err).Msgf("Error reading file %s from container %s", filePath, containerID)
-		return err
-	}
-
-	// Create a new file in local directory
-	destFile, err := os.Create(destPath)
-	if err != nil {
-		log.Error().Err(err).Msgf("Error creating file %s", destPath)
-		return err
-	}
-	defer destFile.Close()
-
-	// Write the file contents to the local file
-	_, err = destFile.Write(output)
-	if err != nil {
-		log.Error().Err(err).Msgf("Error writing to file %s", destPath)
-		return err
-	}
-
-	log.Info().Msgf("Copied file %s from container %s to %s", filePath, containerID, destPath)
-	return nil
 }
 
 // StopAndRemoveRunningContainers stops all running containers that are supported
@@ -425,4 +339,83 @@ func (cm *ContainerManager) StopAndRemoveRunningContainers(ctx context.Context) 
 	}
 
 	return true, nil
+}
+
+// findCoinbaseKeystoreFile executes the ls command to find keystore file for the temporary pre-allocated developer account available and unlocked as eth.coinbase(using docker exec)
+func findCoinbaseKeystoreFile(containerID string, dir string) (string, error) {
+	cmd := exec.Command("docker", "exec", containerID, "ls", dir)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	// Recursive find
+	log.Debug().Msgf("Files in directory: %s\n%s", dir, string(output))
+	fileList := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, file := range fileList {
+		if strings.Contains(file, "UTC") {
+			foundPath := strings.TrimSuffix(dir, "/") + "/" + file
+			log.Info().Msgf("Found keystore file path: %s", foundPath)
+
+			// Copy the found file to local ./wallet/tmp/coinbase directory
+			if err := copyFileFromContainer(containerID, foundPath, "./wallet/tmp/coinbase"); err != nil {
+				log.Error().Err(err).Msg("Error copying file from container")
+				return "", err
+			}
+
+			return file, nil
+		}
+	}
+
+	// If not found, recursively search deeper
+	for _, file := range fileList {
+		if !strings.Contains(file, ".") { // Assuming files without dots are directories
+			newDir := strings.TrimSuffix(dir, "/") + "/" + file
+			log.Info().Msgf("Not found, searching deeper in directory: %s", newDir)
+			foundPath, err := findCoinbaseKeystoreFile(containerID, newDir)
+			if err == nil {
+				return foundPath, nil
+			}
+		}
+	}
+
+	// Keystore file not found
+	log.Warn().Msgf("Keystore file not found in directory: %s", dir)
+	return "", fmt.Errorf("keystore file not found in directory: %s", dir)
+}
+
+// copyFileFromContainer copies a file from a Docker container to the local filesystem
+func copyFileFromContainer(containerID, filePath string, destDir string) error {
+	destLocalFilePath := filepath.Join(destDir, filepath.Base(filePath))
+
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		log.Error().Err(err).Msgf("Error creating directory %s", destDir)
+		return err
+	}
+
+	// Open a reader to read the file contents from the Docker container
+	cmd := exec.Command("docker", "exec", containerID, "cat", filePath)
+	output, err := cmd.Output()
+	if err != nil {
+		log.Error().Err(err).Msgf("Error reading file %s from container %s", filePath, containerID)
+		return err
+	}
+
+	// Create a new file in local directory
+	destFile, err := os.Create(destLocalFilePath)
+	if err != nil {
+		log.Error().Err(err).Msgf("Error creating file %s", destLocalFilePath)
+		return err
+	}
+	defer destFile.Close()
+
+	// Write the file contents to the local file
+	_, err = destFile.Write(output)
+	if err != nil {
+		log.Error().Err(err).Msgf("Error writing to file %s", destLocalFilePath)
+		return err
+	}
+
+	log.Info().Msgf("Copied file %s from container %s to %s", filePath, containerID, destLocalFilePath)
+	return nil
 }

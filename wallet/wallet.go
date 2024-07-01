@@ -5,18 +5,28 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/transeptorlabs/betsy/internal/utils"
 
+	"github.com/rs/zerolog/log"
 	"github.com/tyler-smith/go-bip32"
 	"github.com/tyler-smith/go-bip39"
 )
+
+// BundlerWalletDetails contains the details of the bundler wallet
+type BundlerWalletDetails struct {
+	Beneficiary       common.Address
+	Mnemonic          string
+	EntryPointAddress common.Address
+}
 
 type Wallet struct {
 	client                    *ethclient.Client
@@ -24,6 +34,8 @@ type Wallet struct {
 	BundlerBeneficiaryAddress common.Address
 	defaultDevAccounts        []DefaultDevAccount
 	keyStore                  *keystore.KeyStore
+	password                  string
+	EntryPointAddress         common.Address
 }
 
 type DefaultDevAccount struct {
@@ -75,30 +87,50 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 		return nil, err
 	}
 
-	return &Wallet{
+	wallet := &Wallet{
 		client:                    client,
 		keyStore:                  ks,
 		defaultDevAccounts:        defaultDevAccounts,
 		CoinbaseAddress:           cbAccount.Address,
 		BundlerBeneficiaryAddress: bAccount,
-	}, nil
+		password:                  password,
+		EntryPointAddress:         common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+	}
+
+	// Fund the default development accounts
+	for _, account := range defaultDevAccounts {
+		err = wallet.fundAccountWithEth(ctx, account.Address)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return wallet, nil
 }
 
-// GetAccounts returns all account addresses
-func (w *Wallet) GetAccounts() []common.Address {
+// GetKeyStoreAccounts returns all the accounts in the keystore
+func (w *Wallet) GetKeyStoreAccounts() []common.Address {
 	am := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: false}, w.keyStore)
 	return am.Accounts()
 }
 
 // PrintDevAccounts prints the default development accounts
-func (w *Wallet) PrintDevAccounts() {
+func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
 	fmt.Println("_________________________Default Development Accounts:_________________________")
 	for i, account := range w.defaultDevAccounts {
+
+		balance, err := w.client.BalanceAt(ctx, account.Address, nil)
+		if err != nil {
+			return err
+		}
+
 		fmt.Printf("Account %d:\n", i+1)
 		fmt.Printf("Address: %s\n", account.Address.Hex())
-		fmt.Printf("Private Key: 0x%s\n\n", hex.EncodeToString(crypto.FromECDSA(account.PrivateKey)))
+		fmt.Printf("Private Key: 0x%s\n", hex.EncodeToString(crypto.FromECDSA(account.PrivateKey)))
+		fmt.Printf("Balance: %d wei\n\n", balance)
 	}
 	fmt.Println("_______________________________________________________________________________")
+	return nil
 }
 
 // GetAccount generates a new key and stores it into the key directory, encrypting it with the passphrase and return the address
@@ -164,4 +196,53 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DefaultDevA
 	}
 
 	return accounts, nil
+}
+
+// fundAccountWithEth send 4337 ETH to the account using the coinbase account
+func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Address) error {
+	// Unlock the account (in the context of the keystore is necessary because the private key is encrypted for security reasons)
+	account, err := w.keyStore.Find(accounts.Account{Address: w.CoinbaseAddress})
+	if err != nil {
+		return err
+	}
+
+	err = w.keyStore.Unlock(account, w.password)
+	if err != nil {
+		return err
+	}
+
+	nonce, err := w.client.PendingNonceAt(context.Background(), w.CoinbaseAddress)
+	if err != nil {
+		return err
+	}
+
+	value := new(big.Int)
+	value.SetString("4337000000000000000000", 10) // 4337 ETH in Wei
+	gasLimit := uint64(21000)                     // The gas limit for a standard ETH transfer is 21000 units.
+	gasPrice, err := w.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return err
+	}
+
+	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
+
+	// Sign the transaction and send it
+	chainID, err := w.client.NetworkID(context.Background())
+	if err != nil {
+		return err
+	}
+
+	signedTx, err := w.keyStore.SignTx(account, tx, chainID)
+	if err != nil {
+		return err
+	}
+
+	err = w.client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return err
+	}
+
+	log.Info().Msgf("tx sent: %s", signedTx.Hash().Hex())
+
+	return nil
 }

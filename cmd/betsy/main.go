@@ -167,7 +167,7 @@ func main() {
 				log.Err(err).Msg("Failed to run ETH node conatiner")
 				return nil
 			case <-readyChan:
-				log.Info().Msg("ETH node is ready, starting bundler and creating wallet...")
+				log.Info().Msg("ETH node is ready, starting bundler and creating and funding dev wallet...")
 
 				// create dev wallet
 				bestyWallet, err := wallet.NewWallet(
@@ -179,10 +179,22 @@ func main() {
 					log.Err(err).Msg("Failed to create wallet")
 					return nil
 				}
-				bestyWallet.PrintDevAccounts()
+
+				err = bestyWallet.PrintDevAccounts(ctx)
+				if err != nil {
+					log.Err(err).Msg("Failed to print dev accounts")
+					return nil
+				}
+
+				// Start the bundler container
+				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, wallet.BundlerWalletDetails{
+					Beneficiary:       bestyWallet.BundlerBeneficiaryAddress,
+					Mnemonic:          wallet.DefaultSeedPhrase,
+					EntryPointAddress: bestyWallet.EntryPointAddress,
+				})
 
 				_, err = containerManager.RunContainerInTheBackground(
-					ctxWithReadyChan,
+					ctxWithBundlerDetails,
 					cCtx.String("bundler"),
 					strconv.Itoa(cCtx.Int("bundler.port")),
 				)
