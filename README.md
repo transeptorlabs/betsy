@@ -11,11 +11,12 @@ https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 An all in one cli tool to manage ERC 4337 infrastructure for local development and testing. The tool provides:
 1. Ethereum execution client with support to fork EVM mainnet and testnet
 2. Uses an ephemeral in-memory execution client that is completely destroyed and starts a fresh instance during each Betsy run
-3. Prefunded default accounts with private keys
-4. Predeployed entrypoint point [releases/v0.7](https://github.com/eth-infinitism/account-abstraction/tree/releases/v0.7) contract - 
+3. Prefunded accounts: Default prefunded accounts with private keys
+4. Predeployed contract: Type-safe Go binding for entrypoint point [releases/v0.7](https://github.com/eth-infinitism/account-abstraction/tree/releases/v0.7) contract - 
 5. Pick from multiple ERC 4337 Bundler clients
 6. Realtime ERC 4337 userOp mempool explorer UI
 7. Realtime ERC 4337 Bundler bundle explorer UI
+8. Manage Entrypoint deposits, withdrawals, and stakes
 
 **Supported ERC 4337 bundlers**
 - [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
@@ -49,11 +50,11 @@ docker run -it --rm besty:v-local --help
 
 ##  Development
 
-### Running the application
+### Running the CLI
 
-Run the following command to start the application:
+Run the following command to start the CLI:
 ```shell
-make run-app
+make run-cli
 ```
 
 ### Running tests

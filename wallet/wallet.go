@@ -21,6 +21,11 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
+const keyStorePath = "./wallet/tmp"
+const coinbaseKeyStorePath = "./wallet/tmp/coinbase/"
+const DefaultSeedPhrase = "test test test test test test test test test test test junk"
+const cfEntrypointV7Address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+
 // BundlerWalletDetails contains the details of the bundler wallet
 type BundlerWalletDetails struct {
 	Beneficiary       common.Address
@@ -28,6 +33,7 @@ type BundlerWalletDetails struct {
 	EntryPointAddress common.Address
 }
 
+// Wallet contains the details of the wallet for Besty
 type Wallet struct {
 	client                    *ethclient.Client
 	CoinbaseAddress           common.Address
@@ -38,15 +44,12 @@ type Wallet struct {
 	EntryPointAddress         common.Address
 }
 
+// DefaultDevAccount contains the details of the default development account
 type DefaultDevAccount struct {
 	Address    common.Address
 	PublicKey  *ecdsa.PublicKey
 	PrivateKey *ecdsa.PrivateKey
 }
-
-const keyStorePath = "./wallet/tmp"
-const coinbaseKeyStorePath = "./wallet/tmp/coinbase/"
-const DefaultSeedPhrase = "test test test test test test test test test test test junk"
 
 // NewWallet creates a new wallet for Besty
 func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile string) (*Wallet, error) {
@@ -133,6 +136,59 @@ func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
 	return nil
 }
 
+// fundAccountWithEth send 4337 ETH to the account using the coinbase account
+func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Address) error {
+	// Unlock the account (in the context of the keystore is necessary because the private key is encrypted for security reasons)
+	account, err := w.keyStore.Find(accounts.Account{Address: w.CoinbaseAddress})
+	if err != nil {
+		return err
+	}
+
+	err = w.keyStore.Unlock(account, w.password)
+	if err != nil {
+		return err
+	}
+
+	nonce, err := w.client.PendingNonceAt(context.Background(), w.CoinbaseAddress)
+	if err != nil {
+		return err
+	}
+
+	value := new(big.Int)
+	value.SetString("4337000000000000000000", 10) // 4337 ETH in Wei
+	gasLimit := uint64(21000)                     // The gas limit for a standard ETH transfer is 21000 units.
+	gasPrice, err := w.client.SuggestGasPrice(ctx)
+	if err != nil {
+		return err
+	}
+
+	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
+
+	// Sign the transaction and send it
+	chainID, err := w.client.NetworkID(context.Background())
+	if err != nil {
+		return err
+	}
+
+	signedTx, err := w.keyStore.SignTx(account, tx, chainID)
+	if err != nil {
+		return err
+	}
+
+	err = w.client.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		return err
+	}
+
+	log.Info().Msgf("tx sent: %s", signedTx.Hash().Hex())
+
+	return nil
+}
+
+func (w *Wallet) deploy4337PreCompiledContracts() error {
+	return nil
+}
+
 // GetAccount generates a new key and stores it into the key directory, encrypting it with the passphrase and return the address
 func createAccount(ks *keystore.KeyStore, password string) (common.Address, error) {
 	account, err := ks.NewAccount(password)
@@ -196,53 +252,4 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DefaultDevA
 	}
 
 	return accounts, nil
-}
-
-// fundAccountWithEth send 4337 ETH to the account using the coinbase account
-func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Address) error {
-	// Unlock the account (in the context of the keystore is necessary because the private key is encrypted for security reasons)
-	account, err := w.keyStore.Find(accounts.Account{Address: w.CoinbaseAddress})
-	if err != nil {
-		return err
-	}
-
-	err = w.keyStore.Unlock(account, w.password)
-	if err != nil {
-		return err
-	}
-
-	nonce, err := w.client.PendingNonceAt(context.Background(), w.CoinbaseAddress)
-	if err != nil {
-		return err
-	}
-
-	value := new(big.Int)
-	value.SetString("4337000000000000000000", 10) // 4337 ETH in Wei
-	gasLimit := uint64(21000)                     // The gas limit for a standard ETH transfer is 21000 units.
-	gasPrice, err := w.client.SuggestGasPrice(ctx)
-	if err != nil {
-		return err
-	}
-
-	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-
-	// Sign the transaction and send it
-	chainID, err := w.client.NetworkID(context.Background())
-	if err != nil {
-		return err
-	}
-
-	signedTx, err := w.keyStore.SignTx(account, tx, chainID)
-	if err != nil {
-		return err
-	}
-
-	err = w.client.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		return err
-	}
-
-	log.Info().Msgf("tx sent: %s", signedTx.Hash().Hex())
-
-	return nil
 }

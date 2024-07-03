@@ -97,7 +97,7 @@ func main() {
 				log.Fatal().Err(err).Msg("Docker needs to be installed to use Besty!")
 			}
 
-			// TODO: check that geth is not already running
+			// TODO: check that geth/bundler is not already running and terminate if so
 
 			// Pull required images
 			_, err := containerManager.PullRequiredImages(

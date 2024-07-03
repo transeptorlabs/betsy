@@ -1,0 +1,19 @@
+# Local IDE configuration
+.vscode
+
+# Builds
+/bin
+
+# Local configuration
+.env
+.env.sample
+
+# Submodules
+/libs
+
+# Scripts
+/scripts
+
+# Markdown files
+*.md
+/docs/*

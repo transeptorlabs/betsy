@@ -3,14 +3,10 @@ GORUN = go run
 GOBIN = ./bin
 GOTEST = go test
 
-coinbase-account:
-	chmod +x ./scripts/get-coinbase.sh
-	./scripts/get-coinbase.sh
-
 help:
 	$(GORUN) ./cmd/betsy/main.go -h
 
-run-app:
+run-cli:
 	$(GORUN) ./cmd/betsy/main.go
 
 run-test:
@@ -29,3 +25,6 @@ build-source:
 
 build-docker:
 	docker build -t betsy:v-local .
+
+gen-contract-binding:
+	@echo "Generating contract bindings..."

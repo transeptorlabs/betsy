@@ -1,5 +1,9 @@
 # Default accounts
 
+We use the default seed phrase to generate 10 default accounts with 4337 ETH each. The coionbase account is used to fund the other accounts.
+
+- Default seed phrase: `test test test test test test test test test test test junk`
+
 
 ## Coinbase Account
 In geth dev mode, the term "coinbase" refers to the primary account used for mining rewards and initial transactions. 
@@ -33,12 +37,6 @@ The response will look something like this:
   "result": "0x4563918244f40000"
 }
 ```
-
-1. You can run the following script get the coinbase account address and balance:
-```bash
-make coinbase-account
-```
-
 
 ## Refereneces:
 - book of geth: https://goethereumbook.org/

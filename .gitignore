@@ -2,6 +2,5 @@ bin
 .env
 coverage.out
 .DS_Store
-/wallet/tmp
-/wallet/tmp/coinbase
+/wallet/tmp/**
 
