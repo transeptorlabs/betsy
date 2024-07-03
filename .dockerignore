@@ -9,7 +9,7 @@
 .env.sample
 
 # Submodules
-/libs
+/lib/*s
 
 # Scripts
 /scripts

@@ -9,5 +9,5 @@ We use Geth [abigen](https://geth.ethereum.org/docs/developers/dapp-developer/na
 
 To generate the contract bindings, run the following command:
 ```bash
-make gen-contract-binding
+make gen-contract-binding-aa
 ```

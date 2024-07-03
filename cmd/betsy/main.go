@@ -33,8 +33,6 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to initialize container manager")
 	}
 
-	parentContext := context.Background()
-
 	app := &cli.App{
 		Name:    "Betsy",
 		Version: version.Version,
@@ -101,7 +99,7 @@ func main() {
 
 			// Pull required images
 			_, err := containerManager.PullRequiredImages(
-				parentContext,
+				cCtx.Context,
 				[]string{"geth", cCtx.String("bundler")},
 			)
 			if err != nil {
@@ -112,7 +110,7 @@ func main() {
 		},
 		After: func(cCtx *cli.Context) error {
 			log.Info().Msgf("Tearing down dev environnement!\n")
-			_, err := containerManager.StopAndRemoveRunningContainers(parentContext)
+			_, err := containerManager.StopAndRemoveRunningContainers(cCtx.Context)
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to tear down dev environnement!")
 			}
@@ -142,10 +140,12 @@ func main() {
 		},
 		Action: func(cCtx *cli.Context) error {
 			// Create a context that will be canceled when an interrupt signal is caught
-			ctx, stop := signal.NotifyContext(parentContext, os.Interrupt, syscall.SIGTERM)
+			ctx, stop := signal.NotifyContext(cCtx.Context, os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
 			// Wait until the eth node container is ready before starting the bundler
+			// Using a channel to signal when the container is ready
+			// and a channel to signal if there was an error
 			readyChan := make(chan struct{})
 			readyErrorChan := make(chan error)
 
@@ -162,21 +162,26 @@ func main() {
 				}
 			}()
 
+			/* Handle case where
+			- eth node container fails to start
+			- eth node container is ready
+			- context is canceled with an interrupt signal (ctrl-c)
+			*/
 			select {
 			case err := <-readyErrorChan:
-				log.Err(err).Msg("Failed to run ETH node conatiner")
+				log.Err(err).Msg("Failed to run ETH node container")
 				return nil
 			case <-readyChan:
-				log.Info().Msg("ETH node is ready, starting bundler and creating and funding dev wallet...")
+				log.Info().Msg("ETH node is ready, starting bundler and initializing dev wallet...")
 
-				// create dev wallet
+				// create dev wallet with default accounts
 				bestyWallet, err := wallet.NewWallet(
 					ctx,
 					strconv.Itoa(cCtx.Int("eth.port")),
 					containerManager.CoinbaseKeystoreFile,
 				)
 				if err != nil {
-					log.Err(err).Msg("Failed to create wallet")
+					log.Err(err).Msg("Failed to create dev wallet")
 					return nil
 				}
 
@@ -186,7 +191,7 @@ func main() {
 					return nil
 				}
 
-				// Start the bundler container
+				// Start the bundler container passing a context with the wallet details
 				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, wallet.BundlerWalletDetails{
 					Beneficiary:       bestyWallet.BundlerBeneficiaryAddress,
 					Mnemonic:          wallet.DefaultSeedPhrase,
@@ -202,6 +207,8 @@ func main() {
 					log.Err(err).Msgf("Failed to run %s bundler conatiner", cCtx.String("bundler"))
 					return nil
 				}
+
+				log.Info().Msgf("Bundler container is running on port %d", cCtx.Int("bundler.port"))
 			case <-ctx.Done():
 				log.Info().Msg("Received signal, shutting down...")
 				return nil
@@ -221,7 +228,7 @@ func main() {
 			<-ctx.Done()
 
 			// Create a context with timeout to allow the server to shut down gracefully
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			shutdownCtx, cancel := context.WithTimeout(cCtx.Context, 5*time.Second)
 			defer cancel()
 
 			if err := httpServer.Shutdown(shutdownCtx); err != nil {

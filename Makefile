@@ -26,5 +26,7 @@ build-source:
 build-docker:
 	docker build -t betsy:v-local .
 
-gen-contract-binding:
+gen-contract-binding-aa:
 	@echo "Generating contract bindings..."
+	chmod +x ./scripts/gen-contracts-binding-aa.sh
+	./scripts/gen-contracts-binding-aa.sh
