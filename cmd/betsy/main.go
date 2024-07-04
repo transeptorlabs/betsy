@@ -34,7 +34,7 @@ func main() {
 	}
 
 	app := &cli.App{
-		Name:    "Betsy",
+		Name:    "betsy",
 		Version: version.Version,
 		Authors: []*cli.Author{
 			{

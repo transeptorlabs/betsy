@@ -18,13 +18,16 @@ run-test-coverage:
 	$(GOTEST) -v -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out
 
-build-source:
+besty:
 	$(GOBUILD) -o ./bin/betsy ./cmd/betsy
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/betsy\" to launch betsy."
 
-build-docker:
+besty-docker:
+	@echo "Building docker image..."
 	docker build -t betsy:v-local .
+	@echo "Done building."
+	@echo "Run \"docker run -it --rm besty:v-local\" to launch betsy."
 
 gen-contract-binding-aa:
 	@echo "Generating contract bindings..."

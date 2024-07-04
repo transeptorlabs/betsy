@@ -90,6 +90,8 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 		return nil, err
 	}
 
+	// TODO: Deploy the 4337 pre-compiled contracts
+
 	wallet := &Wallet{
 		client:                    client,
 		keyStore:                  ks,
