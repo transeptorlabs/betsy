@@ -23,12 +23,6 @@ betsy:
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/betsy\" to launch betsy."
 
-betsy-docker:
-	@echo "Building docker image..."
-	docker build -t betsy:v-local .
-	@echo "Done building."
-	@echo "Run \"docker run -it --rm betsy:v-local\" to launch betsy."
-
 gen-contract-binding-aa:
 	@echo "Generating contract bindings..."
 	chmod +x ./scripts/gen-contracts-binding-aa.sh

@@ -5,8 +5,6 @@ https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 )](https://pkg.go.dev/github.com/transeptorlabs/betsy)
 [![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/betsy)](https://goreportcard.com/report/github.com/transeptorlabs/betsy)
 ![build status](https://github.com/transeptorlabs/betsy/actions/workflows/build.yml/badge.svg?branch=main)
-[![Docker Pulls](https://img.shields.io/docker/pulls/transeptorlabs/betsy)](https://img.shields.io/docker/pulls/transeptorlabs/betsy)
-
 
 An all in one cli tool to manage ERC 4337 infrastructure for local development and testing. 
 
