@@ -10,7 +10,7 @@ https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 
 An all in one cli tool to manage ERC 4337 infrastructure for local development and testing. 
 
-**Features include:**
+✨**Features include:**
 1. Uses an ephemeral in-memory Ethereum execution client that is completely destroyed and starts a fresh instance during each Betsy run
 2. Pre-funded accounts: Default pre-funded accounts with private keys
 3. Pre-deployed contract: Type-safe Go binding for Account abstraction contracts
@@ -61,9 +61,10 @@ betsy version x.y.z-stable (abcabcabcabc yyyy-mm-dd)
 
 #### Linux and Mac
 
-:::important Betsy with default to unstable builds(development) If you want to use a stable build; please checkout a `release/x.y.z` branch before running `make besty`. :::
+> ℹ️ **Info**: Betsy will default to unstable builds(development). If you want to use a stable build; please checkout a `release/x.y.z` branch before running `make besty`.
 
-For UNIX-like operating systems you can clone the [Besty](https://github.com/transeptorlabs/betsy) repository and create a **temporary** build using the command `make besty`. This method of building requires Go(>= 1.22.4) and Docker to be installed on your system.
+
+For UNIX-like operating systems you can clone the [Besty](https://github.com/transeptorlabs/betsy) repository and create a **temporary** build using the command `make besty`. This method of building requires Go and Docker to be installed on your system.
 
 ```shell
 git clone https://github.com/transeptorlabs/betsy.git
