@@ -37,7 +37,7 @@ type BundlerWalletDetails struct {
 	EntryPointAddress common.Address
 }
 
-// Wallet contains the details of the wallet for Besty
+// Wallet contains the details of the wallet for Betsy
 type Wallet struct {
 	client                      *ethclient.Client
 	coinbaseAddress             common.Address
@@ -57,7 +57,7 @@ type DevAccount struct {
 	PrivateKey *ecdsa.PrivateKey
 }
 
-// NewWallet creates a new wallet for Besty
+// NewWallet creates a new wallet for Betsy
 func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile string) (*Wallet, error) {
 	client, err := ethclient.Dial("http://localhost:" + ethNodePort)
 	if err != nil {

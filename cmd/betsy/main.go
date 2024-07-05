@@ -92,7 +92,7 @@ func main() {
 			// Check that docker is installed
 			ok := containerManager.IsDockerInstalled()
 			if !ok {
-				log.Fatal().Err(err).Msg("Docker needs to be installed to use Besty!")
+				log.Fatal().Err(err).Msg("Docker needs to be installed to use Betsy!")
 			}
 
 			// TODO: check that geth/bundler is not already running and terminate if so
@@ -175,7 +175,7 @@ func main() {
 				log.Info().Msg("ETH node is ready, starting bundler and initializing dev wallet...")
 
 				// create dev wallet with default accounts
-				bestyWallet, err := wallet.NewWallet(
+				betsyWallet, err := wallet.NewWallet(
 					ctx,
 					strconv.Itoa(cCtx.Int("eth.port")),
 					containerManager.CoinbaseKeystoreFile,
@@ -185,14 +185,14 @@ func main() {
 					return nil
 				}
 
-				err = bestyWallet.PrintDevAccounts(ctx)
+				err = betsyWallet.PrintDevAccounts(ctx)
 				if err != nil {
 					log.Err(err).Msg("Failed to print dev accounts")
 					return nil
 				}
 
 				// Start the bundler container passing a context with the wallet details
-				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, bestyWallet.GetBundlerWalletDetails())
+				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, betsyWallet.GetBundlerWalletDetails())
 
 				_, err = containerManager.RunContainerInTheBackground(
 					ctxWithBundlerDetails,

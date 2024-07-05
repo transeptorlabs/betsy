@@ -302,6 +302,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 			time.Sleep(3 * time.Second)
 		}
 
+		time.Sleep(3 * time.Second)
 		log.Info().Msgf("Attempting to find eth.coinbase keystore file at /tmp on container: %s", resp.ID)
 		coinbaseKeystoreFile, err := findCoinbaseKeystoreFile(resp.ID, "tmp")
 		if err != nil {

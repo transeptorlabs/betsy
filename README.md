@@ -35,11 +35,11 @@ Betsy follows [Semantic Versioning](https://semver.org/) for versioning releases
 
 ### Branches
 
-The `main` branch is the default branch for the repository and acts as the development branch. The main branch is `unstable` and should be for those who want to run the latest version of Besty to test new features and bug fixes.
+The `main` branch is the default branch for the repository and acts as the development branch. The main branch is `unstable` and should be for those who want to run the latest version of Betsy to test new features and bug fixes.
 
-The latest `stable` version of Besty can be found on branch `release/x.y.z`. The stable branch is for those who want to run the latest stable version of Besty.
+The latest `stable` version of Betsy can be found on branch `release/x.y.z`. The stable branch is for those who want to run the latest stable version of Betsy.
 
-If you are unsure which version of Besty you are currently running, you can check the version by running the command `betsy --version`. You should see the version number, commit hash, and commit date for the latest stable/unstable version, in the following format.
+If you are unsure which version of Betsy you are currently running, you can check the version by running the command `betsy --version`. You should see the version number, commit hash, and commit date for the latest stable/unstable version, in the following format.
 
 For unstable version(development):
 ```shell    
@@ -53,37 +53,44 @@ betsy version x.y.z-stable (abcabcabcabc yyyy-mm-dd)
 
 ## Installation
 
-**Requirements to run Besty**:
+**Requirements to run Betsy**:
 1. [Go - >= v1.22.4](https://go.dev/doc/install)
 2. [Docker](https://docs.docker.com/engine/install)
 
 ### Build from the source
 
+> ℹ️ **Info**: Betsy will default to unstable builds(development). If you want to use a stable build; it is recommended to build from a specific release version `vx.y.z`.
+
 #### Linux and Mac
 
-> ℹ️ **Info**: Betsy will default to unstable builds(development). If you want to use a stable build; please checkout a `release/x.y.z` branch before running `make besty`.
+For UNIX-like operating systems you can clone the [Betsy](https://github.com/transeptorlabs/betsy) repository and create a **temporary** build using the command `make betsy`. This method of building requires Go to be installed on your system.
 
+Running `make betsy` results in the creation of a standalone executable file in the `betsy/bin` directory and does not require any dependencies to run. You can run the executable file using the command `./bin/betsy --help`. Or you can move the executable file and run from another directory.
 
-For UNIX-like operating systems you can clone the [Besty](https://github.com/transeptorlabs/betsy) repository and create a **temporary** build using the command `make besty`. This method of building requires Go to be installed on your system.
-
+##### Development version(unstable) build:
 ```shell
 git clone https://github.com/transeptorlabs/betsy.git
-cd besty
-make besty
+cd betsy
+make betsy
 ```
 
-Running the command above results in the creation of a standalone executable file in the `betsy/bin` directory and does not require any dependencies to run. You can run the executable file using the command `./bin/betsy --help`. Or you can move the executable file and run from another directory.
-
-##### Update Besty on development branch
-To update the the latest version of Besty, you can:
+To update the the latest development version of Betsy, you can:
 1. Stop the cli(If it is running)
-2. Navigate to the Besty directory 
-3. Pull the latest version of the source code from Besty Github repository 
+2. Navigate to the Betsy directory 
+3. Pull the latest version of the source code from Betsy Github repository 
 4. Build and restart the cli
    
 ```shell
 cd betsy
 git pull
+make betsy
+```
+
+##### Stable version build:
+```shell
+git clone https://github.com/transeptorlabs/betsy.git
+cd betsy
+git checkout vx.y.z
 make betsy
 ```
 

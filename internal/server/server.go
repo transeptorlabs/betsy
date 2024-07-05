@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"html/template"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +49,12 @@ func (s *HTTPServer) Run() error {
 		c.JSON(200, gin.H{
 			"status": "ready",
 		})
+	})
+
+	dashboardRoutes := r.Group("/dashboard")
+	dashboardRoutes.GET("/userop-mempool", func(c *gin.Context) {
+		tmpl := template.Must(template.ParseFiles("./public/index.html"))
+		tmpl.Execute(c.Writer, nil)
 	})
 
 	s.server = &http.Server{
