@@ -192,11 +192,7 @@ func main() {
 				}
 
 				// Start the bundler container passing a context with the wallet details
-				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, wallet.BundlerWalletDetails{
-					Beneficiary:       bestyWallet.BundlerBeneficiaryAddress,
-					Mnemonic:          wallet.DefaultSeedPhrase,
-					EntryPointAddress: bestyWallet.EntryPointAddress,
-				})
+				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, bestyWallet.GetBundlerWalletDetails())
 
 				_, err = containerManager.RunContainerInTheBackground(
 					ctxWithBundlerDetails,

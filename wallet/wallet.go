@@ -7,13 +7,17 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/transeptorlabs/betsy/contracts/entrypoint"
+	factory "github.com/transeptorlabs/betsy/contracts/simple-account-factory"
 	"github.com/transeptorlabs/betsy/internal/utils"
 
 	"github.com/rs/zerolog/log"
@@ -35,17 +39,19 @@ type BundlerWalletDetails struct {
 
 // Wallet contains the details of the wallet for Besty
 type Wallet struct {
-	client                    *ethclient.Client
-	CoinbaseAddress           common.Address
-	BundlerBeneficiaryAddress common.Address
-	defaultDevAccounts        []DefaultDevAccount
-	keyStore                  *keystore.KeyStore
-	password                  string
-	EntryPointAddress         common.Address
+	client                      *ethclient.Client
+	coinbaseAddress             common.Address
+	bundlerBeneficiaryAddress   common.Address
+	devAccounts                 []DevAccount
+	keyStore                    *keystore.KeyStore
+	password                    string
+	entryPointAddress           common.Address
+	simpleAccountFactoryAddress common.Address
+	chainID                     *big.Int
 }
 
-// DefaultDevAccount contains the details of the default development account
-type DefaultDevAccount struct {
+// DevAccount contains the details of the default development account
+type DevAccount struct {
 	Address    common.Address
 	PublicKey  *ecdsa.PublicKey
 	PrivateKey *ecdsa.PrivateKey
@@ -56,6 +62,11 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 	client, err := ethclient.Dial("http://localhost:" + ethNodePort)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to connect to Ethereum client: %v", err)
+	}
+
+	chainID, err := client.NetworkID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// Define the path to the keystore
@@ -79,35 +90,42 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 		return nil, err
 	}
 
-	// Create a new account for the bundler beneficiary
+	// Create a new account for the bundler beneficiary in the keystore
 	bAccount, err := createAccount(ks, password)
 	if err != nil {
 		return nil, err
 	}
 
-	defaultDevAccounts, err := GenerateAccountsFromSeed(DefaultSeedPhrase, 10)
+	devAccounts, err := GenerateAccountsFromSeed(DefaultSeedPhrase, 10)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Deploy the 4337 pre-compiled contracts
-
+	// Create the wallet
 	wallet := &Wallet{
-		client:                    client,
-		keyStore:                  ks,
-		defaultDevAccounts:        defaultDevAccounts,
-		CoinbaseAddress:           cbAccount.Address,
-		BundlerBeneficiaryAddress: bAccount,
-		password:                  password,
-		EntryPointAddress:         common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
+		client:                      client,
+		keyStore:                    ks,
+		devAccounts:                 devAccounts,
+		coinbaseAddress:             cbAccount.Address,
+		bundlerBeneficiaryAddress:   bAccount,
+		password:                    password,
+		entryPointAddress:           common.HexToAddress(""),
+		simpleAccountFactoryAddress: common.HexToAddress(""),
+		chainID:                     chainID,
 	}
 
 	// Fund the default development accounts
-	for _, account := range defaultDevAccounts {
+	for _, account := range devAccounts {
 		err = wallet.fundAccountWithEth(ctx, account.Address)
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	//  Deploy the 4337 pre-compiled contracts
+	err = wallet.deploy4337PreCompiledContracts(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	return wallet, nil
@@ -119,10 +137,15 @@ func (w *Wallet) GetKeyStoreAccounts() []common.Address {
 	return am.Accounts()
 }
 
+// GetDevAccounts returns the default development accounts
+func (w *Wallet) GetDevAccounts() []DevAccount {
+	return w.devAccounts
+}
+
 // PrintDevAccounts prints the default development accounts
 func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
 	fmt.Println("_________________________Default Development Accounts:_________________________")
-	for i, account := range w.defaultDevAccounts {
+	for i, account := range w.devAccounts {
 
 		balance, err := w.client.BalanceAt(ctx, account.Address, nil)
 		if err != nil {
@@ -138,10 +161,19 @@ func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
 	return nil
 }
 
+// GetBundlerWalletDetails returns the details of the bundler wallet
+func (w *Wallet) GetBundlerWalletDetails() BundlerWalletDetails {
+	return BundlerWalletDetails{
+		Beneficiary:       w.bundlerBeneficiaryAddress,
+		Mnemonic:          DefaultSeedPhrase,
+		EntryPointAddress: w.entryPointAddress,
+	}
+}
+
 // fundAccountWithEth send 4337 ETH to the account using the coinbase account
 func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Address) error {
 	// Unlock the account (in the context of the keystore is necessary because the private key is encrypted for security reasons)
-	account, err := w.keyStore.Find(accounts.Account{Address: w.CoinbaseAddress})
+	account, err := w.keyStore.Find(accounts.Account{Address: w.coinbaseAddress})
 	if err != nil {
 		return err
 	}
@@ -151,7 +183,7 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 		return err
 	}
 
-	nonce, err := w.client.PendingNonceAt(context.Background(), w.CoinbaseAddress)
+	nonce, err := w.client.PendingNonceAt(ctx, w.coinbaseAddress)
 	if err != nil {
 		return err
 	}
@@ -167,17 +199,12 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 	tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
 
 	// Sign the transaction and send it
-	chainID, err := w.client.NetworkID(context.Background())
+	signedTx, err := w.keyStore.SignTx(account, tx, w.chainID)
 	if err != nil {
 		return err
 	}
 
-	signedTx, err := w.keyStore.SignTx(account, tx, chainID)
-	if err != nil {
-		return err
-	}
-
-	err = w.client.SendTransaction(context.Background(), signedTx)
+	err = w.client.SendTransaction(ctx, signedTx)
 	if err != nil {
 		return err
 	}
@@ -187,7 +214,56 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 	return nil
 }
 
-func (w *Wallet) deploy4337PreCompiledContracts() error {
+// deploy4337PreCompiledContracts deploys the 4337 pre-compiled contracts
+func (w *Wallet) deploy4337PreCompiledContracts(ctx context.Context) error {
+	log.Info().Msg("Deploying the 4337 EntryPointV7 contract...")
+	auth, err := bind.NewKeyedTransactorWithChainID(w.devAccounts[0].PrivateKey, w.chainID)
+	if err != nil {
+		return err
+	}
+
+	entryPointAddress, tx1, _, err := entrypoint.DeployEntryPointV7(auth, w.client)
+	time.Sleep(300 * time.Millisecond) // Allow it to be processed by the local node
+
+	receipt, err := bind.WaitMined(ctx, w.client, tx1)
+	if err != nil {
+		return err
+	} else if receipt.Status == types.ReceiptStatusFailed {
+		return err
+	}
+
+	exists, err := checkContractExistence(ctx, entryPointAddress, w.client)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return err
+	}
+
+	log.Info().Msgf("EntryPointV7 contract deployed at address: %s", entryPointAddress.Hex())
+	w.entryPointAddress = entryPointAddress
+
+	simpleAFAddress, tx2, _, err := factory.DeploySimpleAccountFactoryV7(auth, w.client, entryPointAddress)
+	time.Sleep(300 * time.Millisecond) // Allow it to be processed by the local node
+
+	receipt2, err := bind.WaitMined(ctx, w.client, tx2)
+	if err != nil {
+		return err
+	} else if receipt2.Status == types.ReceiptStatusFailed {
+		return err
+	}
+
+	exists2, err := checkContractExistence(ctx, entryPointAddress, w.client)
+	if err != nil {
+		return err
+	}
+	if !exists2 {
+		return err
+	}
+
+	log.Info().Msgf("SimpleAccountFactoryV7 contract deployed at address: %s", simpleAFAddress.Hex())
+	w.simpleAccountFactoryAddress = simpleAFAddress
+
 	return nil
 }
 
@@ -202,8 +278,8 @@ func createAccount(ks *keystore.KeyStore, password string) (common.Address, erro
 }
 
 // generateAccountsFromSeed generates a number of accounts from a seed phrase
-func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DefaultDevAccount, error) {
-	var accounts []DefaultDevAccount
+func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DevAccount, error) {
+	var accounts []DevAccount
 
 	// Generate the seed from the mnemonic and create a master key from the seed
 	seed := bip39.NewSeed(seedPhrase, "")
@@ -244,7 +320,7 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DefaultDevA
 
 		publicKey := &privateKey.PublicKey
 		address := crypto.PubkeyToAddress(*publicKey)
-		devAccount := DefaultDevAccount{
+		devAccount := DevAccount{
 			Address:    address,
 			PublicKey:  publicKey,
 			PrivateKey: privateKey,
@@ -254,4 +330,18 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DefaultDevA
 	}
 
 	return accounts, nil
+}
+
+// checkContractExistence checks if a contract exists at the given address
+func checkContractExistence(ctx context.Context, contractAddress common.Address, client *ethclient.Client) (bool, error) {
+	stopRequestCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Query the blockchain to see if a contract exists at the given address
+	code, err := client.CodeAt(stopRequestCtx, contractAddress, nil)
+	if err != nil {
+		return false, err
+	}
+
+	return len(code) > 0, nil
 }

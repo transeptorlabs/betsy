@@ -22,10 +22,10 @@ An all in one cli tool to manage ERC 4337 infrastructure for local development a
 5. Realtime ERC 4337 userOp mempool explorer UI. Visualize the userOp mempool in real-time.
 6. Realtime ERC 4337 Bundler bundle explorer UI. Visualize the bundler bundle production in real-time.
 
-**Coming soon:**
+🚧**Coming soon:**
 1. Supported ERC 4337 bundlers**
    - [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
-   - [ ] Other bundlers (e.g. Flashbots, ArcherDAO, etc.)
+   - [ ] Other bundlers (e.g. [Aabundler](https://github.com/eth-infinitism/bundler), [Okbund](https://github.com/okx/okbund) etc.)
 2. Ethereum execution client forks for EVM mainnet and testnet. Run your own fork of the Ethereum mainnet or testnet to test your AA smart contracts in a real-world environment.
 3. Manage Entrypoint deposits, withdrawals, and stakes on local Entrypoint contract.
 
