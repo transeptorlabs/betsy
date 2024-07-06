@@ -7,7 +7,7 @@ EP_GO_BINDING_FILE="$PWD/contracts/entrypoint/entrypoint-v7.go"
 SIMPLE_AF_COMPILED_CONTRACT_FILE="$PWD/lib/account-abstraction-releases-v0.7/artifacts/contracts/samples/SimpleAccountFactory.sol/SimpleAccountFactory.json"
 SIMPLE_AF_ABI_FILE="$PWD/precompiled-contracts/SimpleAccountFactoryV7.abi"
 SIMPLE_AF_BIN_FILE="$PWD/precompiled-contracts/SimpleAccountFactoryV7.bin"
-SIMPLE_AF_GO_BINDING_FILE="$PWD/contracts/simple-account-factory/simple-account-factory-v7.go"
+SIMPLE_AF_GO_BINDING_FILE="$PWD/contracts/factory/simple-account-factory-v7.go"
 
 # check that jq is installed and exit if not
 if ! [ -x "$(command -v jq)" ]; then

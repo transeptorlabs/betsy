@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/transeptorlabs/betsy/contracts/entrypoint"
-	factory "github.com/transeptorlabs/betsy/contracts/simple-account-factory"
+	"github.com/transeptorlabs/betsy/contracts/factory"
 	"github.com/transeptorlabs/betsy/internal/utils"
 
 	"github.com/rs/zerolog/log"
@@ -117,7 +117,7 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 	}
 
 	// Fund the default development accounts
-	for _, account := range devAccounts {
+	for _, account := range wallet.devAccounts {
 		err = wallet.fundAccountWithEth(ctx, account.Address)
 		if err != nil {
 			return nil, err
@@ -155,18 +155,17 @@ func (w *Wallet) GetDevAccounts(ctx context.Context) ([]DevAccount, error) {
 
 // PrintDevAccounts prints the default development accounts
 func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
+	acountsWithBalanceRefresh, err := w.GetDevAccounts(ctx)
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("_________________________Default Development Accounts:_________________________")
-	for i, account := range w.devAccounts {
-
-		balance, err := w.client.BalanceAt(ctx, account.Address, nil)
-		if err != nil {
-			return err
-		}
-
+	for i, account := range acountsWithBalanceRefresh {
 		fmt.Printf("Account %d:\n", i+1)
 		fmt.Printf("Address: %s\n", account.Address.Hex())
-		fmt.Printf("Private Key: 0x%s\n", hex.EncodeToString(crypto.FromECDSA(account.PrivateKey)))
-		fmt.Printf("Balance: %d wei\n\n", balance)
+		fmt.Printf("Private Key: %s\n", account.PrivateKeyHex)
+		fmt.Printf("Balance: %d wei\n\n", account.Balance)
 	}
 	fmt.Println("_______________________________________________________________________________")
 	return nil
@@ -336,6 +335,7 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DevAccount,
 			PublicKey:     publicKey,
 			PrivateKey:    privateKey,
 			PrivateKeyHex: "0x" + hex.EncodeToString(crypto.FromECDSA(privateKey)),
+			Balance:       big.NewInt(0),
 		}
 
 		accounts = append(accounts, devAccount)
