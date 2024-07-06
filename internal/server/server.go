@@ -2,11 +2,12 @@ package server
 
 import (
 	"context"
-	"html/template"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/transeptorlabs/betsy/wallet"
 )
 
 const (
@@ -18,27 +19,33 @@ type HTTPServer struct {
 	listenHost string
 	debug      bool
 	server     *http.Server
+	wallet     *wallet.Wallet
 }
 
 // NewHTTPServer creates a new HTTP server.
-func NewHTTPServer(listenHost string, debug bool) *HTTPServer {
+func NewHTTPServer(listenHost string, debug bool, wallet *wallet.Wallet) *HTTPServer {
 	return &HTTPServer{
 		listenHost: listenHost,
 		debug:      debug,
+		wallet:     wallet,
 	}
 }
 
 // Run starts the HTTP server.
 func (s *HTTPServer) Run() error {
 	if s.debug {
-		log.Debug().Msg("Debug mode enabled")
-	} else {
 		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
-	r := gin.Default()
+	router := gin.New()
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.LoadHTMLGlob("templates/**/*")
 
-	healthRoutes := r.Group("/health")
+	// Health group
+	healthRoutes := router.Group("/health")
 	healthRoutes.GET("/", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
@@ -51,18 +58,38 @@ func (s *HTTPServer) Run() error {
 		})
 	})
 
-	dashboardRoutes := r.Group("/dashboard")
+	// Dashboard group
+	dashboardRoutes := router.Group("/dashboard")
+	dashboardRoutes.GET("/accounts", func(c *gin.Context) {
+		accounts, err := s.wallet.GetDevAccounts(c)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+
+		c.HTML(http.StatusOK, "accounts/index.html", gin.H{
+			"title":    "Accounts",
+			"accounts": accounts,
+		})
+	})
+
 	dashboardRoutes.GET("/userop-mempool", func(c *gin.Context) {
-		tmpl := template.Must(template.ParseFiles("./public/index.html"))
-		tmpl.Execute(c.Writer, nil)
+		c.HTML(http.StatusOK, "mempool/index.html", gin.H{
+			"title": "UserOp Mempool",
+		})
+	})
+
+	dashboardRoutes.GET("/bundles", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "bundles/index.html", gin.H{
+			"title": "Bundler Bundles",
+		})
 	})
 
 	s.server = &http.Server{
-		Addr:    s.listenHost,
-		Handler: r,
+		Addr:         s.listenHost,
+		Handler:      router.Handler(),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
-
-	log.Info().Msgf("HTTP Server started on http://%v\n", s.listenHost)
 
 	return s.server.ListenAndServe()
 }

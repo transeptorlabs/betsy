@@ -23,10 +23,7 @@ import (
 
 func main() {
 	var err error
-	log.Logger, err = logger.GetLogger()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize logger")
-	}
+	var betsyWallet *wallet.Wallet
 
 	containerManager, err := docker.NewContainerManager()
 	if err != nil {
@@ -49,9 +46,16 @@ func main() {
 		HideVersion:          false,
 		HideHelp:             false,
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "log.level",
+				Usage:    "Enable debug mode on server",
+				Aliases:  []string{"l"},
+				Value:    "INFO",
+				Required: false,
+			},
 			&cli.BoolFlag{
 				Name:     "debug",
-				Usage:    "Enable debug server",
+				Usage:    "Enable debug mode on server",
 				Aliases:  []string{"d"},
 				Value:    false,
 				Required: false,
@@ -87,7 +91,12 @@ func main() {
 			},
 		},
 		Before: func(cCtx *cli.Context) error {
-			log.Info().Msgf("Running preflight checks...")
+			log.Logger, err = logger.GetLogger(cCtx.String("log.level"))
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to initialize logger")
+			}
+
+			log.Debug().Msgf("Running preflight checks...")
 
 			// Check that docker is installed
 			ok := containerManager.IsDockerInstalled()
@@ -109,10 +118,10 @@ func main() {
 			return nil
 		},
 		After: func(cCtx *cli.Context) error {
-			log.Info().Msgf("Tearing down dev environnement!\n")
+			log.Info().Msgf("Tearing down docker containers!\n")
 			_, err := containerManager.StopAndRemoveRunningContainers(cCtx.Context)
 			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to tear down dev environnement!")
+				log.Fatal().Err(err).Msg("Failed to tear down docker containers!")
 			}
 
 			containerManager.Close()
@@ -175,7 +184,7 @@ func main() {
 				log.Info().Msg("ETH node is ready, starting bundler and initializing dev wallet...")
 
 				// create dev wallet with default accounts
-				betsyWallet, err := wallet.NewWallet(
+				betsyWallet, err = wallet.NewWallet(
 					ctx,
 					strconv.Itoa(cCtx.Int("eth.port")),
 					containerManager.CoinbaseKeystoreFile,
@@ -200,11 +209,9 @@ func main() {
 					strconv.Itoa(cCtx.Int("bundler.port")),
 				)
 				if err != nil {
-					log.Err(err).Msgf("Failed to run %s bundler conatiner", cCtx.String("bundler"))
+					log.Err(err).Msgf("Failed to run %s bundler container", cCtx.String("bundler"))
 					return nil
 				}
-
-				log.Info().Msgf("Bundler container is running on port %d", cCtx.Int("bundler.port"))
 			case <-ctx.Done():
 				log.Info().Msg("Received signal, shutting down...")
 				return nil
@@ -214,12 +221,18 @@ func main() {
 			httpServer := server.NewHTTPServer(
 				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
 				cCtx.Bool("debug"),
+				betsyWallet,
 			)
 			go func() {
 				if err := httpServer.Run(); err != nil && err != http.ErrServerClosed {
 					log.Fatal().Err(err).Msg("HTTP server failed")
 				}
 			}()
+
+			fmt.Printf("ETH node started on http://localhost:%d\n", cCtx.Int("eth.port"))
+			fmt.Printf("Bundler node started on http://localhost:%d\n", cCtx.Int("bundler.port"))
+			fmt.Printf("UserOp mempool explorer HTTP server started on http://localhost:%d\n", cCtx.Int("http.port"))
+			fmt.Println("_______________________________________________________________________________")
 
 			<-ctx.Done()
 

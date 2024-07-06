@@ -48,7 +48,7 @@ type ContainerDetails struct {
 	NodeType      string
 }
 
-// NewContainerManagerr creates a new container manager
+// NewContainerManager creates a new container manager
 func NewContainerManager() (*ContainerManager, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -136,7 +136,7 @@ func (cm *ContainerManager) ListRunningContainer(ctx context.Context) error {
 	}
 
 	for _, container := range containers {
-		log.Info().Msgf("Container ID: %s\n", container.ID)
+		log.Debug().Msgf("Container ID: %s\n", container.ID)
 	}
 
 	return nil
@@ -237,13 +237,13 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 		imageFound.Env[foundIndexMnemonic] = strings.Replace(imageFound.Env[foundIndexMnemonic], BundlerNodeMnemonicPlaceHolder, bundlerDetails.Mnemonic, 1)
 	}
 
-	constinerPort := hostPort + "/tcp"
+	containerPort := hostPort + "/tcp"
 	config := &container.Config{
 		Image: imageFound.imageName,
 		Cmd:   imageFound.Cmd,
 		Env:   imageFound.Env,
 		ExposedPorts: nat.PortSet{
-			nat.Port(constinerPort): struct{}{},
+			nat.Port(containerPort): struct{}{},
 		},
 		// TODO: Use health check for bundlers and eth node
 		// Healthcheck: &container.HealthConfig{
@@ -256,7 +256,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{
-			nat.Port(constinerPort): []nat.PortBinding{
+			nat.Port(containerPort): []nat.PortBinding{
 				{
 					HostIP:   "0.0.0.0", // setting to 0.0.0.0 means that the port is exposed on all network interfaces on host machine
 					HostPort: hostPort,
@@ -275,12 +275,12 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 	}
 
 	// Update the container details
-	log.Info().Msgf("Container ID successfully started: %s\n", resp.ID)
+	log.Debug().Msgf("%s Container ID successfully started: %s\n", image, resp.ID)
 	cm.supportedImages[image] = ContainerDetails{
 		imageName: imageFound.imageName,
 		Cmd:       imageFound.Cmd,
 		ExposedPorts: nat.PortSet{
-			nat.Port(constinerPort): struct{}{},
+			nat.Port(containerPort): struct{}{},
 		},
 		ContainerID: resp.ID,
 		IsRunning:   true,
@@ -295,7 +295,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 				return false, err
 			}
 
-			log.Info().Msgf("Checking Eth node container ready status: %+v", containerJSON.State.Status)
+			log.Debug().Msgf("Checking Eth node container ready status: %+v", containerJSON.State.Status)
 			if containerJSON.State.Status == "running" {
 				break
 			}
@@ -303,7 +303,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 		}
 
 		time.Sleep(3 * time.Second)
-		log.Info().Msgf("Attempting to find eth.coinbase keystore file at /tmp on container: %s", resp.ID)
+		log.Debug().Msgf("Attempting to find eth.coinbase keystore file at /tmp on container: %s", resp.ID)
 		coinbaseKeystoreFile, err := findCoinbaseKeystoreFile(resp.ID, "tmp")
 		if err != nil {
 			return false, err
@@ -324,18 +324,18 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 func (cm *ContainerManager) StopAndRemoveRunningContainers(ctx context.Context) (bool, error) {
 	for _, containerDetails := range cm.supportedImages {
 		if containerDetails.IsRunning {
-			log.Info().Msgf("Attempting to stop container %s", containerDetails.ContainerID)
+			log.Debug().Msgf("Attempting to stop container %s", containerDetails.ContainerID)
 			noWaitTimeout := 0
 
 			if err := cm.client.ContainerStop(ctx, containerDetails.ContainerID, container.StopOptions{Timeout: &noWaitTimeout}); err != nil {
 				return false, err
 			}
-			log.Info().Msgf("Successfully stopped container %s", containerDetails.ContainerID)
+			log.Debug().Msgf("Successfully stopped container %s", containerDetails.ContainerID)
 
 			if err := cm.client.ContainerRemove(ctx, containerDetails.ContainerID, container.RemoveOptions{}); err != nil {
 				return false, err
 			}
-			log.Info().Msgf("Successfully removed container %s", containerDetails.ContainerID)
+			log.Debug().Msgf("Successfully removed container %s", containerDetails.ContainerID)
 		}
 	}
 
@@ -356,7 +356,7 @@ func findCoinbaseKeystoreFile(containerID string, dir string) (string, error) {
 	for _, file := range fileList {
 		if strings.Contains(file, "UTC") {
 			foundPath := strings.TrimSuffix(dir, "/") + "/" + file
-			log.Info().Msgf("Found keystore file path: %s", foundPath)
+			log.Debug().Msgf("Found keystore file path: %s", foundPath)
 
 			// Copy the found file to local ./wallet/tmp/coinbase directory
 			if err := copyFileFromContainer(containerID, foundPath, "./wallet/tmp/coinbase"); err != nil {
@@ -372,7 +372,7 @@ func findCoinbaseKeystoreFile(containerID string, dir string) (string, error) {
 	for _, file := range fileList {
 		if !strings.Contains(file, ".") { // Assuming files without dots are directories
 			newDir := strings.TrimSuffix(dir, "/") + "/" + file
-			log.Info().Msgf("Not found, searching deeper in directory: %s", newDir)
+			log.Debug().Msgf("Not found, searching deeper in directory: %s", newDir)
 			foundPath, err := findCoinbaseKeystoreFile(containerID, newDir)
 			if err == nil {
 				return foundPath, nil
@@ -417,6 +417,6 @@ func copyFileFromContainer(containerID, filePath string, destDir string) error {
 		return err
 	}
 
-	log.Info().Msgf("Copied file %s from container %s to %s", filePath, containerID, destLocalFilePath)
+	log.Debug().Msgf("Copied file %s from container %s to %s", filePath, containerID, destLocalFilePath)
 	return nil
 }

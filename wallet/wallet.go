@@ -52,9 +52,11 @@ type Wallet struct {
 
 // DevAccount contains the details of the default development account
 type DevAccount struct {
-	Address    common.Address
-	PublicKey  *ecdsa.PublicKey
-	PrivateKey *ecdsa.PrivateKey
+	Address       common.Address
+	PublicKey     *ecdsa.PublicKey
+	PrivateKey    *ecdsa.PrivateKey
+	PrivateKeyHex string
+	Balance       *big.Int
 }
 
 // NewWallet creates a new wallet for Betsy
@@ -138,8 +140,17 @@ func (w *Wallet) GetKeyStoreAccounts() []common.Address {
 }
 
 // GetDevAccounts returns the default development accounts
-func (w *Wallet) GetDevAccounts() []DevAccount {
-	return w.devAccounts
+func (w *Wallet) GetDevAccounts(ctx context.Context) ([]DevAccount, error) {
+	for i, account := range w.devAccounts {
+
+		balance, err := w.client.BalanceAt(ctx, account.Address, nil)
+		if err != nil {
+			return nil, err
+		}
+		w.devAccounts[i].Balance = balance
+	}
+
+	return w.devAccounts, nil
 }
 
 // PrintDevAccounts prints the default development accounts
@@ -209,7 +220,7 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 		return err
 	}
 
-	log.Info().Msgf("tx sent: %s", signedTx.Hash().Hex())
+	log.Info().Msgf("tx sent to fund (%s): %s", toAddress, signedTx.Hash().Hex())
 
 	return nil
 }
@@ -321,9 +332,10 @@ func GenerateAccountsFromSeed(seedPhrase string, numAccounts int) ([]DevAccount,
 		publicKey := &privateKey.PublicKey
 		address := crypto.PubkeyToAddress(*publicKey)
 		devAccount := DevAccount{
-			Address:    address,
-			PublicKey:  publicKey,
-			PrivateKey: privateKey,
+			Address:       address,
+			PublicKey:     publicKey,
+			PrivateKey:    privateKey,
+			PrivateKeyHex: "0x" + hex.EncodeToString(crypto.FromECDSA(privateKey)),
 		}
 
 		accounts = append(accounts, devAccount)

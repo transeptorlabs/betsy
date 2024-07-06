@@ -1,12 +1,12 @@
 # Default accounts
 
-We use the default seed phrase to generate 10 default accounts with 4337 ETH each. The coionbase account is used to fund the other accounts.
+We use the default seed phrase to generate 10 accounts with 4337 ETH each. The `eth-coinbase` account funds the other accounts.
 
-- Default seed phrase: `test test test test test test test test test test test junk`
+- Default seed phrase: `test test test test test test test test test test test junk`.
 
 
 ## Coinbase Account
-In geth dev mode, the term "coinbase" refers to the primary account used for mining rewards and initial transactions. 
+In geth dev mode, "coinbase" refers to the primary account used for mining rewards and initial transactions. 
 
 A random, pre-allocated developer account will be available and unlocked as `eth.coinbase`, which can be used for testing. You can retrieve the list of accounts and use the first account as the coinbase account. Here’s how you can do it:
 
@@ -38,5 +38,5 @@ The response will look something like this:
 }
 ```
 
-## Refereneces:
+## References:
 - book of geth: https://goethereumbook.org/

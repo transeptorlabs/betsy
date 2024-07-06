@@ -2,11 +2,11 @@
 
 ## Docker Engine API
 
-The [Docker Engine API](https://docs.docker.com/engine/api/) is used to manage all erc4337 environment containers. Under the hood Betsy plugs into to the API to create, start, stop, and remove containers; abstracting the complexity of managing Docker containers.
+The [Docker Engine API](https://docs.docker.com/engine/api/) manages all erc4337 environment containers. Under the hood, Betsy plugs into the API to create, start, stop, and remove containers, abstracting the complexity of managing Docker containers.
 
 ## Command-Line Flags/Arguments
 
-Use command-line flags to pass options like ports, network settings, etc., when starting containers.
+When starting containers, use command-line flags to pass options like ports, network settings, etc.
 
 ## Error Handling
 

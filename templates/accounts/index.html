@@ -1,0 +1,22 @@
+{{ define "accounts/index.html" }}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Accounts</title>
+  </head>
+  <body>
+    <h1>{{ .title }}</h1>
+    <hr />
+
+    {{ range $i, $account := .accounts }}
+    <h2>Account {{ $i }}</h2>
+    <h3>Address: {{ .Address }}</h2>
+    <h3>PrivateKey: {{ .PrivateKeyHex }}</h3>
+    <h3>Balance: {{ .Balance }} wei</h3>
+    <hr />
+    {{ end }}
+  </body>
+</html>
+{{ end }}

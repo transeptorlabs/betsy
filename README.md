@@ -6,9 +6,9 @@ https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 [![Go Report Card](https://goreportcard.com/badge/github.com/transeptorlabs/betsy)](https://goreportcard.com/report/github.com/transeptorlabs/betsy)
 ![build status](https://github.com/transeptorlabs/betsy/actions/workflows/build.yml/badge.svg?branch=main)
 
-An all in one cli tool to manage ERC 4337 infrastructure for local development and testing. 
+An all-in-one CLI tool to manage ERC 4337 infrastructure for local development and testing. 
 
-✨**Features include:**
+✨ **Features include:**
 1. Uses an ephemeral in-memory Ethereum execution client that is completely destroyed and starts a fresh instance during each Betsy run
 2. Pre-funded accounts: Default pre-funded accounts with private keys
 3. Pre-deployed contract: Type-safe Go binding for Account abstraction contracts
@@ -16,83 +16,29 @@ An all in one cli tool to manage ERC 4337 infrastructure for local development a
    - [SimpleAccountFactory release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/samples/SimpleAccountFactory.sol)
    - [SimpleAccount release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/samples/SimpleAccount.sol)
 4. ERC 4337 Bundler clients
-    -  [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
-5. Realtime ERC 4337 userOp mempool explorer UI. Visualize the userOp mempool in real-time.
-6. Realtime ERC 4337 Bundler bundle explorer UI. Visualize the bundler bundle production in real-time.
+    - [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
+5. Realtime ERC 4337 userOp mempool explorer UI. Visualize the userOp mempool in real time.
+6. Realtime ERC 4337 Bundler bundle explorer UI. Visualize the bundler bundle production in real time.
 
-🚧**Coming soon:**
+🚧 **Coming soon:**
 1. Supported ERC 4337 bundlers**
    - [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
    - [ ] Other bundlers (e.g. [Aabundler](https://github.com/eth-infinitism/bundler), [Okbund](https://github.com/okx/okbund) etc.)
-2. Ethereum execution client forks for EVM mainnet and testnet. Run your own fork of the Ethereum mainnet or testnet to test your AA smart contracts in a real-world environment.
+2. Ethereum execution client forks for EVM mainnet and testnet. Run a fork of the Ethereum mainnet or testnet to test your AA smart contracts in a real-world environment.
 3. Manage Entrypoint deposits, withdrawals, and stakes on local Entrypoint contract.
-
-## Versioning
-
-Betsy follows [Semantic Versioning](https://semver.org/) for versioning releases. Each release can be found on the repository as a branch with the version number `release/x.y.z.` along with a release tag with the version number `vx.y.z`.
-
-### Branches
-
-The `main` branch is the default branch for the repository and acts as the development branch. The main branch is `unstable` and should be for those who want to run the latest version of Betsy to test new features and bug fixes.
-
-The latest `stable` version of Betsy can be found on branch `release/x.y.z`. The stable branch is for those who want to run the latest stable version of Betsy.
-
-If you are unsure which version of Betsy you are currently running, you can check the version by running the command `betsy --version`. You should see the version number, commit hash, and commit date for the latest stable/unstable version, in the following format.
-
-For unstable version(development):
-```shell    
-betsy version x.y.z-unstable (abcabcabcabc yyyy-mm-dd)
-```
-
-For stable version:
-```shell
-betsy version x.y.z-stable (abcabcabcabc yyyy-mm-dd)
-```
 
 ## Installation
 
-**Requirements to run Betsy**:
-1. [Go - >= v1.22.4](https://go.dev/doc/install)
-2. [Docker](https://docs.docker.com/engine/install)
-
-### Build from the source
-
-> ℹ️ **Info**: Betsy will default to unstable builds(development). If you want to use a stable build; it is recommended to build from a specific release version `vx.y.z`.
-
-#### Linux and Mac
-
-For UNIX-like operating systems you can clone the [Betsy](https://github.com/transeptorlabs/betsy) repository and create a **temporary** build using the command `make betsy`. This method of building requires Go to be installed on your system.
-
-Running `make betsy` results in the creation of a standalone executable file in the `betsy/bin` directory and does not require any dependencies to run. You can run the executable file using the command `./bin/betsy --help`. Or you can move the executable file and run from another directory.
-
-##### Development version(unstable) build:
-```shell
-git clone https://github.com/transeptorlabs/betsy.git
-cd betsy
-make betsy
-```
-
-To update the the latest development version of Betsy, you can:
-1. Stop the cli(If it is running)
-2. Navigate to the Betsy directory 
-3. Pull the latest version of the source code from Betsy Github repository 
-4. Build and restart the cli
-   
-```shell
-cd betsy
-git pull
-make betsy
-```
-
-##### Stable version build:
-```shell
-git clone https://github.com/transeptorlabs/betsy.git
-cd betsy
-git checkout vx.y.z
-make betsy
-```
+For more information on installing Betsy, see the [Installation](./docs/installation.md) guide.
 
 ##  Development
+
+Information on how to set a development environment for Betsy.
+
+### Branches
+
+The `main` branch acts as the development branch and is the repository's default branch. The main branch build will be marked as `unstable` in the version.
+- Betsy's latest `stable` version can be found on branch `release/x.y.z`.
 
 ### Running the CLI
 
@@ -108,7 +54,7 @@ To run the tests, execute the following command:
 make test
 ```
 
-or to run the tests with coverage:
+Or to run the tests with coverage:
 ```shell
 make test-coverage
 ```
