@@ -1,0 +1,15 @@
+****************************************************
+Development Accounts:
+{{ range $i, $account := .DevAccounts }}
+Account: {{ $i }}
+Address: {{ .Address }}
+Private Key: {{ .PrivateKeyHex }}
+Balance: {{ .Balance }} wei
+{{ end }}
+
+
+Node Info:
+- ETH node started on {{ .EthNodeUrl }}
+- Bundler node started on {{ .BundlerNodeUrl }}
+- HTTP dashboard server started on {{ .DashboardServerUrl }}/dashboard/accounts
+****************************************************

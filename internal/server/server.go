@@ -33,6 +33,8 @@ func NewHTTPServer(listenHost string, debug bool, wallet *wallet.Wallet) *HTTPSe
 
 // Run starts the HTTP server.
 func (s *HTTPServer) Run() error {
+	log.Info().Msg("Starting HTTP server...")
+
 	if s.debug {
 		gin.SetMode(gin.DebugMode)
 	} else {

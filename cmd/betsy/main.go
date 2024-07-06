@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +21,13 @@ import (
 	"github.com/transeptorlabs/betsy/wallet"
 	"github.com/urfave/cli/v2"
 )
+
+type NodeInfo struct {
+	EthNodeUrl         string
+	BundlerNodeUrl     string
+	DashboardServerUrl string
+	DevAccounts        []wallet.DevAccount
+}
 
 func main() {
 	var err error
@@ -49,9 +57,10 @@ func main() {
 			&cli.StringFlag{
 				Name:     "log.level",
 				Usage:    "Enable debug mode on server",
-				Aliases:  []string{"l"},
+				Aliases:  []string{"log"},
 				Value:    "INFO",
 				Required: false,
+				Category: "Logger selection:",
 			},
 			&cli.BoolFlag{
 				Name:     "debug",
@@ -96,17 +105,19 @@ func main() {
 				log.Fatal().Err(err).Msg("Failed to initialize logger")
 			}
 
+			err = printWelomeBanner()
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to load welcome banner")
+			}
+
 			log.Debug().Msgf("Running preflight checks...")
 
-			// Check that docker is installed
+			// Check that docker is installed and pull required images
 			ok := containerManager.IsDockerInstalled()
 			if !ok {
 				log.Fatal().Err(err).Msg("Docker needs to be installed to use Betsy!")
 			}
 
-			// TODO: check that geth/bundler is not already running and terminate if so
-
-			// Pull required images
 			_, err := containerManager.PullRequiredImages(
 				cCtx.Context,
 				[]string{"geth", cCtx.String("bundler")},
@@ -194,12 +205,6 @@ func main() {
 					return nil
 				}
 
-				err = betsyWallet.PrintDevAccounts(ctx)
-				if err != nil {
-					log.Err(err).Msg("Failed to print dev accounts")
-					return nil
-				}
-
 				// Start the bundler container passing a context with the wallet details
 				ctxWithBundlerDetails := context.WithValue(ctx, docker.BundlerNodeWalletDetails, betsyWallet.GetBundlerWalletDetails())
 
@@ -217,7 +222,6 @@ func main() {
 				return nil
 			}
 
-			// Start the server in a goroutine
 			httpServer := server.NewHTTPServer(
 				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
 				cCtx.Bool("debug"),
@@ -229,10 +233,23 @@ func main() {
 				}
 			}()
 
-			fmt.Printf("ETH node started on http://localhost:%d\n", cCtx.Int("eth.port"))
-			fmt.Printf("Bundler node started on http://localhost:%d\n", cCtx.Int("bundler.port"))
-			fmt.Printf("UserOp mempool explorer HTTP server started on http://localhost:%d\n", cCtx.Int("http.port"))
-			fmt.Println("_______________________________________________________________________________")
+			accounts, err := betsyWallet.GetDevAccounts(ctx)
+			if err != nil {
+				log.Err(err).Msg("Failed to get dev accounts")
+				stop()
+			}
+
+			prefix := "http://localhost:"
+			err = printBetsyInfo(NodeInfo{
+				EthNodeUrl:         prefix + strconv.Itoa(cCtx.Int("eth.port")),
+				BundlerNodeUrl:     prefix + strconv.Itoa(cCtx.Int("bundler.port")),
+				DashboardServerUrl: prefix + strconv.Itoa(cCtx.Int("http.port")),
+				DevAccounts:        accounts,
+			})
+			if err != nil {
+				log.Err(err).Msg("Failed print Betsy info")
+				stop()
+			}
 
 			<-ctx.Done()
 
@@ -253,4 +270,33 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal().Err(err).Msg("Failed to run app")
 	}
+}
+
+func printWelomeBanner() error {
+	var tmplBannerFile = "banner.tmpl"
+	tmpl, err := template.New(tmplBannerFile).ParseFiles(tmplBannerFile)
+	if err != nil {
+		return err
+	}
+	err = tmpl.Execute(os.Stdout, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func printBetsyInfo(nodeInfo NodeInfo) error {
+	var tmplBannerFile = "betsy-info.tmpl"
+	tmpl, err := template.New(tmplBannerFile).ParseFiles(tmplBannerFile)
+	if err != nil {
+		return err
+	}
+
+	err = tmpl.Execute(os.Stdout, nodeInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

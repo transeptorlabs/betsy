@@ -153,24 +153,6 @@ func (w *Wallet) GetDevAccounts(ctx context.Context) ([]DevAccount, error) {
 	return w.devAccounts, nil
 }
 
-// PrintDevAccounts prints the default development accounts
-func (w *Wallet) PrintDevAccounts(ctx context.Context) error {
-	acountsWithBalanceRefresh, err := w.GetDevAccounts(ctx)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("_________________________Default Development Accounts:_________________________")
-	for i, account := range acountsWithBalanceRefresh {
-		fmt.Printf("Account %d:\n", i+1)
-		fmt.Printf("Address: %s\n", account.Address.Hex())
-		fmt.Printf("Private Key: %s\n", account.PrivateKeyHex)
-		fmt.Printf("Balance: %d wei\n\n", account.Balance)
-	}
-	fmt.Println("_______________________________________________________________________________")
-	return nil
-}
-
 // GetBundlerWalletDetails returns the details of the bundler wallet
 func (w *Wallet) GetBundlerWalletDetails() BundlerWalletDetails {
 	return BundlerWalletDetails{

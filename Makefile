@@ -9,6 +9,9 @@ help:
 run-cli:
 	$(GORUN) ./cmd/betsy/main.go
 
+run-cli-dev:
+	$(GORUN) ./cmd/betsy/main.go --log DEBUG --debug
+
 run-test:
 	@echo "Running tests..."
 	$(GOTEST) -v -cover ./...
