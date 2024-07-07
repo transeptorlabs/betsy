@@ -1,0 +1,15 @@
+<!-- Renders type ([]DevAccount) from github.com/transeptorlabs/betsy/wallet -->
+{{ define "accounts" }}
+<div>
+  <h1>Dev Accounts</h1>
+  <hr />
+
+  {{ range $i, $account := .accounts }}
+  <p>Account {{ $i }}</p>
+  <p>Address: {{ .Address }}</p>
+  <p>PrivateKey: {{ .PrivateKeyHex }}</p>
+  <p>Balance: {{ .Balance }} wei</p>
+  <hr />
+  {{ end }}
+</div>
+{{ end }}

@@ -44,7 +44,11 @@ func (s *HTTPServer) Run() error {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	router.LoadHTMLGlob("templates/**/*")
+
+	router.LoadHTMLGlob("ui/templates/*")
+	router.Static("assets/css", "ui/assets/css")
+	router.Static("assets/js", "ui/assets/js")
+	router.Static("assets/img", "ui/assets/img")
 
 	// Health group
 	healthRoutes := router.Group("/health")
@@ -60,30 +64,38 @@ func (s *HTTPServer) Run() error {
 		})
 	})
 
-	// Dashboard group
-	dashboardRoutes := router.Group("/dashboard")
-	dashboardRoutes.GET("/accounts", func(c *gin.Context) {
+	// Dashboard
+	router.GET("/dashboard", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "base", gin.H{
+			"title": "Dashboard",
+		})
+	})
+
+	router.GET("/accounts", func(c *gin.Context) {
 		accounts, err := s.wallet.GetDevAccounts(c)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		}
 
-		c.HTML(http.StatusOK, "accounts/index.html", gin.H{
-			"title":    "Accounts",
+		c.HTML(http.StatusOK, "accounts", gin.H{
 			"accounts": accounts,
 		})
 	})
 
-	dashboardRoutes.GET("/userop-mempool", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "mempool/index.html", gin.H{
-			"title": "UserOp Mempool",
+	router.GET("/mempool", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "mempool", gin.H{
+			"mempool": nil,
 		})
 	})
 
-	dashboardRoutes.GET("/bundles", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "bundles/index.html", gin.H{
-			"title": "Bundler Bundles",
+	router.GET("/bundles", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "bundles", gin.H{
+			"bundles": nil,
 		})
+	})
+
+	router.NoRoute(func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/dashboard")
 	})
 
 	s.server = &http.Server{
