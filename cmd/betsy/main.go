@@ -14,6 +14,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/transeptorlabs/betsy/internal/docker"
+	"github.com/transeptorlabs/betsy/internal/mempool"
 	"github.com/transeptorlabs/betsy/internal/server"
 	"github.com/transeptorlabs/betsy/internal/utils"
 	"github.com/transeptorlabs/betsy/logger"
@@ -222,14 +223,30 @@ func main() {
 				return nil
 			}
 
+			// create a start mempool polling
+			mempool := mempool.NewUserOpMempool(
+				betsyWallet.GetBundlerWalletDetails().EntryPointAddress,
+				betsyWallet.GetEthClient(),
+				"http://localhost:"+strconv.Itoa(cCtx.Int("bundler.port")),
+			)
+			go func() {
+				if err := mempool.Run(); err != nil {
+					log.Err(err).Msg("mempool failed")
+					stop()
+				}
+			}()
+
+			// create and start http server
 			httpServer := server.NewHTTPServer(
 				net.JoinHostPort("localhost", strconv.Itoa(cCtx.Int("http.port"))),
 				cCtx.Bool("debug"),
 				betsyWallet,
+				mempool,
 			)
 			go func() {
 				if err := httpServer.Run(); err != nil && err != http.ErrServerClosed {
-					log.Fatal().Err(err).Msg("HTTP server failed")
+					log.Err(err).Msg("HTTP server failed")
+					stop()
 				}
 			}()
 
@@ -257,8 +274,10 @@ func main() {
 			shutdownCtx, cancel := context.WithTimeout(cCtx.Context, 5*time.Second)
 			defer cancel()
 
+			mempool.Stop()
+
 			if err := httpServer.Shutdown(shutdownCtx); err != nil {
-				log.Fatal().Err(err).Msg("Server shutdown failed")
+				log.Err(err).Msg("Server shutdown failed")
 			} else {
 				log.Info().Msg("Server shutdown completed")
 			}
@@ -273,8 +292,8 @@ func main() {
 }
 
 func printWelomeBanner() error {
-	var tmplBannerFile = "banner.tmpl"
-	tmpl, err := template.New(tmplBannerFile).ParseFiles(tmplBannerFile)
+	var tmplBannerFile = "ui/templates/banner.tmpl"
+	tmpl, err := template.New("banner.tmpl").ParseFiles(tmplBannerFile)
 	if err != nil {
 		return err
 	}
@@ -287,8 +306,8 @@ func printWelomeBanner() error {
 }
 
 func printBetsyInfo(nodeInfo NodeInfo) error {
-	var tmplBannerFile = "betsy-info.tmpl"
-	tmpl, err := template.New(tmplBannerFile).ParseFiles(tmplBannerFile)
+	var tmplBannerFile = "ui/templates/betsy-info.tmpl"
+	tmpl, err := template.New("betsy-info.tmpl").ParseFiles(tmplBannerFile)
 	if err != nil {
 		return err
 	}

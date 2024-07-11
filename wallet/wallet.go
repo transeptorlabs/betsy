@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 	"github.com/transeptorlabs/betsy/contracts/entrypoint"
 	"github.com/transeptorlabs/betsy/contracts/factory"
 	"github.com/transeptorlabs/betsy/internal/utils"
@@ -338,4 +339,12 @@ func checkContractExistence(ctx context.Context, contractAddress common.Address,
 	}
 
 	return len(code) > 0, nil
+}
+
+func (w *Wallet) GetEthClient() *ethclient.Client {
+	return w.client
+}
+
+func (w *Wallet) GetGethClient() *gethclient.Client {
+	return gethclient.New(w.client.Client())
 }
