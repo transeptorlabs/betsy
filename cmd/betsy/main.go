@@ -224,10 +224,11 @@ func main() {
 			}
 
 			// create a start mempool polling
+			bundlerUrl := "http://localhost:" + strconv.Itoa(cCtx.Int("bundler.port")) + "/rpc"
 			mempool := mempool.NewUserOpMempool(
 				betsyWallet.GetBundlerWalletDetails().EntryPointAddress,
 				betsyWallet.GetEthClient(),
-				"http://localhost:"+strconv.Itoa(cCtx.Int("bundler.port")),
+				bundlerUrl,
 			)
 			go func() {
 				if err := mempool.Run(); err != nil {
@@ -259,7 +260,7 @@ func main() {
 			prefix := "http://localhost:"
 			err = printBetsyInfo(NodeInfo{
 				EthNodeUrl:         prefix + strconv.Itoa(cCtx.Int("eth.port")),
-				BundlerNodeUrl:     prefix + strconv.Itoa(cCtx.Int("bundler.port")),
+				BundlerNodeUrl:     bundlerUrl,
 				DashboardServerUrl: prefix + strconv.Itoa(cCtx.Int("http.port")),
 				DevAccounts:        accounts,
 			})
