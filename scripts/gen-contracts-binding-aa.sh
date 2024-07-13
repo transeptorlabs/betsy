@@ -9,6 +9,10 @@ SIMPLE_AF_ABI_FILE="$PWD/precompiled-contracts/SimpleAccountFactoryV7.abi"
 SIMPLE_AF_BIN_FILE="$PWD/precompiled-contracts/SimpleAccountFactoryV7.bin"
 SIMPLE_AF_GO_BINDING_FILE="$PWD/contracts/factory/simple-account-factory-v7.go"
 
+GLOBAL_COUNTER_ABI_FILE="$PWD/precompiled-contracts/GlobalCounter.abi"
+GLOBAL_COUNTER_BIN_FILE="$PWD/precompiled-contracts/GlobalCounter.bin"
+GLOBAL_COUNTER_GO_BINDING_FILE="$PWD/contracts/examples/global-counter.go"
+
 # check that jq is installed and exit if not
 if ! [ -x "$(command -v jq)" ]; then
   echo "Error: jq is not installed. Please install to run script." >&2
@@ -71,3 +75,6 @@ abigen --abi $EP_ABI_FILE --pkg entrypoint --type EntryPointV7 --bin $EP_BIN_FIL
 
 echo "Generating go bindings for SimpleAccountFactoryV7 contract..."
 abigen --abi $SIMPLE_AF_ABI_FILE --pkg factory --type SimpleAccountFactoryV7 --bin $SIMPLE_AF_BIN_FILE --out $SIMPLE_AF_GO_BINDING_FILE
+
+echo "Generating go bindings for GlobalCounter contract..."
+abigen --abi $GLOBAL_COUNTER_ABI_FILE --pkg examples --type GlobalCounter --bin $GLOBAL_COUNTER_BIN_FILE --out $GLOBAL_COUNTER_GO_BINDING_FILE

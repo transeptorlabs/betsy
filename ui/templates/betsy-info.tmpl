@@ -1,5 +1,9 @@
 ****************************************************
 Development Accounts:
+
+Mnemonic: test test test test test test test test test test test junk
+Derivation path:   m/44'/60'/0'/0/
+
 {{ range $i, $account := .DevAccounts }}
 Account: {{ $i }}
 Address: {{ .Address }}
@@ -8,7 +12,17 @@ Balance: {{ .Balance }} wei
 {{ end }}
 
 
+*******************
+Pre-deployed contracts:
+- EntryPoint V7: {{ .PreDeployedContracts.EntryPointAddress }}
+- SimpleAccountFactory: {{ .PreDeployedContracts.SimpleAccountFactoryAddress }}
+- GlobalCounter: {{ .PreDeployedContracts.GlobalCounterAddress }}
+
+
+*******************
 Node Info:
+- Gas Limit: 30000000
+- Chain ID: 1337
 - ETH node started on {{ .EthNodeUrl }}
 - Bundler node started on {{ .BundlerNodeUrl }}
 - HTTP dashboard server started on {{ .DashboardServerUrl }}/dashboard

@@ -2,6 +2,8 @@ package data
 
 import (
 	"errors"
+	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,24 +15,24 @@ import (
 
 // UserOpV7Hexify is a struct used to store user operations in a database. Contains all EIP-4337 with all hex fields.
 type UserOpV7Hexify struct {
-	Sender string `json:"sender"               mapstructure:"sender"               validate:"required"`
-	Nonce  string `json:"nonce"               mapstructure:"nonce"               validate:"required"`
+	Sender string `json:"sender"               mapstructure:"sender"`
+	Nonce  string `json:"nonce"               mapstructure:"nonce"`
 
 	// (optional)
-	Factory     string `json:"factory"               mapstructure:"factory" validate:"required"`
+	Factory     string `json:"factory"               mapstructure:"factory"`
 	FactoryData string `json:"factoryData"               mapstructure:"factoryData"`
 
-	CallData     string `json:"callData"               mapstructure:"callData" validate:"required"`
-	CallGasLimit string `json:"callGasLimit"               mapstructure:"callGasLimit" validate:"required"`
+	CallData     string `json:"callData"               mapstructure:"callData"`
+	CallGasLimit string `json:"callGasLimit"               mapstructure:"callGasLimit"`
 
-	VerificationGasLimit string `json:"verificationGasLimit"               mapstructure:"verificationGasLimit" validate:"required"`
-	PreVerificationGas   string `json:"preVerificationGas"               mapstructure:"preVerificationGas" validate:"required"`
+	VerificationGasLimit string `json:"verificationGasLimit"               mapstructure:"verificationGasLimit"`
+	PreVerificationGas   string `json:"preVerificationGas"               mapstructure:"preVerificationGas"`
 
-	MaxFeePerGas         string `json:"maxFeePerGas"               mapstructure:"maxFeePerGas" validate:"required" `
-	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"               mapstructure:"maxPriorityFeePerGas" validate:"required" `
+	MaxFeePerGas         string `json:"maxFeePerGas"               mapstructure:"maxFeePerGas" `
+	MaxPriorityFeePerGas string `json:"maxPriorityFeePerGas"               mapstructure:"maxPriorityFeePerGas" `
 
 	// (optional)
-	Paymaster                     string `json:"paymaster"     mapstructure:"paymaster"     validate:"required"`
+	Paymaster                     string `json:"paymaster"     mapstructure:"paymaster"`
 	PaymasterVerificationGasLimit string `json:"paymasterVerificationGasLimit"     mapstructure:"paymasterVerificationGasLimit"`
 	PaymasterPostOpGasLimit       string `json:"paymasterPostOpGasLimit"     mapstructure:"paymasterPostOpGasLimit"`
 	PaymasterData                 string `json:"paymasterAndData"     mapstructure:"paymasterAndData"`
@@ -57,7 +59,7 @@ func (op *UserOpV7Hexify) GetUserOpHash(epAddress common.Address, ethClient *eth
 	return common.BytesToHash(hash[:]), nil
 }
 
-func (op *UserOpV7Hexify) getInitCode() ([]byte, error) {
+func (op *UserOpV7Hexify) GetInitCode() ([]byte, error) {
 	if op.Factory == "0x" {
 		return []byte{}, nil
 	}
@@ -154,7 +156,7 @@ func (op *UserOpV7Hexify) gasFees() ([32]byte, error) {
 }
 
 func (op *UserOpV7Hexify) getPaymasterAndData() ([]byte, error) {
-	if op.Paymaster == "0x" {
+	if op.Paymaster == "0x" || op.Paymaster == "" {
 		return []byte{}, nil
 	}
 
@@ -217,44 +219,42 @@ func (op *UserOpV7Hexify) getPaymasterAndData() ([]byte, error) {
 }
 
 func (op *UserOpV7Hexify) packUserOp() (*entrypoint.PackedUserOperation, error) {
-	nonceDecoded, err := hexutil.DecodeBig(op.Nonce)
-	if err != nil {
-		return nil, errors.New("nonce (bigInt) conversion failed")
-	}
+	nonceDecoded := new(big.Int)
+	nonceDecoded.SetString(op.Nonce, 16)
 
-	initCodeDecoded, err := op.getInitCode()
+	initCodeDecoded, err := op.GetInitCode()
 	if err != nil {
-		return nil, errors.New("nonce (bigInt) conversion failed")
+		return nil, fmt.Errorf("initcode conversion failed: %w", err)
 	}
 
 	callDataDecoded, err := hexutil.Decode(op.CallData)
 	if err != nil {
-		return nil, errors.New("calldata (bytes) conversion failed")
+		return nil, fmt.Errorf("calldata (bytes) conversion failed: %w", err)
 	}
 
 	preVerificationGaseDecoded, err := hexutil.DecodeBig(op.PreVerificationGas)
 	if err != nil {
-		return nil, errors.New("preVerificationGas (bigInt) conversion failed")
+		return nil, fmt.Errorf("preVerificationGas (bigInt) conversion failed: %w", err)
 	}
 
 	accountGasLimitsDecoded, err := op.getAccountGasLimits()
 	if err != nil {
-		return nil, errors.New("accountGasLimit (bytes 32) conversion failed")
+		return nil, fmt.Errorf("accountGasLimit (bytes 32) conversion failed: %w", err)
 	}
 
 	gasFeesDecoded, err := op.gasFees()
 	if err != nil {
-		return nil, errors.New("gasFees (bytes 32) conversion failed")
+		return nil, fmt.Errorf("gasFees (bytes 32) conversion failed: %w", err)
 	}
 
 	paymasterAndDataDecoded, err := op.getPaymasterAndData()
 	if err != nil {
-		return nil, errors.New("paymasterAndData (bytes) conversion failed")
+		return nil, fmt.Errorf("paymasterAndData (bytes) conversion failed: %w", err)
 	}
 
 	signatureDecoded, err := hexutil.Decode(op.Signature)
 	if err != nil {
-		return nil, errors.New("signature (bytes) conversion failed")
+		return nil, fmt.Errorf("signature (bytes) conversion failed: %w", err)
 	}
 
 	return &entrypoint.PackedUserOperation{

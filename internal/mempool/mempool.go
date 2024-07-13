@@ -11,8 +11,13 @@ import (
 	"github.com/transeptorlabs/betsy/internal/data"
 )
 
+type MempoolEntry struct {
+	op     *data.UserOpV7Hexify
+	status string
+}
+
 type UserOpMempool struct {
-	userOps                  map[common.Hash]*data.UserOpV7Hexify
+	userOps                  map[common.Hash]MempoolEntry
 	mutex                    sync.Mutex
 	ethClient                *ethclient.Client
 	epAddress                common.Address
@@ -25,7 +30,7 @@ type UserOpMempool struct {
 
 func NewUserOpMempool(epAddress common.Address, ethClient *ethclient.Client, bundlerUrl string) *UserOpMempool {
 	return &UserOpMempool{
-		userOps:                  make(map[common.Hash]*data.UserOpV7Hexify),
+		userOps:                  make(map[common.Hash]MempoolEntry),
 		epAddress:                epAddress,
 		ethClient:                ethClient,
 		bundlerClient:            client.NewBundlerClient(bundlerUrl),
@@ -39,10 +44,17 @@ func (m *UserOpMempool) GetUserOps() map[common.Hash]*data.UserOpV7Hexify {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	return m.userOps
+	var ops = make(map[common.Hash]*data.UserOpV7Hexify)
+
+	for k, v := range m.userOps {
+		ops[k] = v.op
+	}
+
+	return ops
 }
 
 func (m *UserOpMempool) addUserOp(op *data.UserOpV7Hexify) error {
+	log.Debug().Msgf("Attempting to add userOp to mempool: %#v\n", op)
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -52,24 +64,28 @@ func (m *UserOpMempool) addUserOp(op *data.UserOpV7Hexify) error {
 	}
 
 	if _, ok := m.userOps[userOpHash]; ok {
+		log.Debug().Msgf("Skipping userOp already in mempool(userOpHash): %s\n", userOpHash)
 		return nil
 	}
 
-	m.userOps[userOpHash] = op
+	m.userOps[userOpHash] = MempoolEntry{
+		op:     op,
+		status: "pending",
+	}
+	log.Debug().Msgf("Successfully added userOp in mempool(userOpHash): %s\n", userOpHash)
 
 	return nil
 }
 
 func (m *UserOpMempool) refreshMempool() error {
-	log.Info().Msg("Refreshing mempool...")
+	log.Debug().Msg("Refreshing mempool...")
 
 	userOps, err := m.bundlerClient.Debug_bundler_dumpMempool()
 	if err != nil {
 		return err
 	}
 
-	log.Info().Msgf("userOps fetched from bundler(data): %#v\n", userOps)
-	log.Info().Msgf("total userOps fetched from bundler(count): %#v\n", len(userOps))
+	log.Debug().Msgf("Total userOps fetched from bundler(count): %d", len(userOps))
 	if len(userOps) > 0 {
 		for _, op := range userOps {
 			err = m.addUserOp(&op)
@@ -88,7 +104,7 @@ func (m *UserOpMempool) Run() error {
 	}
 
 	log.Info().Msg("Starting up Mempool...")
-	m.ticker = time.NewTicker(5 * time.Second)
+	m.ticker = time.NewTicker(3 * time.Second)
 	go func(m *UserOpMempool) {
 		for {
 			select {

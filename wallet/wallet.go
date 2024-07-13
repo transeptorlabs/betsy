@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethclient/gethclient"
 	"github.com/transeptorlabs/betsy/contracts/entrypoint"
+	"github.com/transeptorlabs/betsy/contracts/examples"
 	"github.com/transeptorlabs/betsy/contracts/factory"
 	"github.com/transeptorlabs/betsy/internal/utils"
 
@@ -48,6 +49,7 @@ type Wallet struct {
 	password                    string
 	entryPointAddress           common.Address
 	simpleAccountFactoryAddress common.Address
+	globalCounterAddress        common.Address
 	chainID                     *big.Int
 }
 
@@ -58,6 +60,12 @@ type DevAccount struct {
 	PrivateKey    *ecdsa.PrivateKey
 	PrivateKeyHex string
 	Balance       *big.Int
+}
+
+type PreDeployedContracts struct {
+	EntryPointAddress           common.Address
+	SimpleAccountFactoryAddress common.Address
+	GlobalCounterAddress        common.Address
 }
 
 // NewWallet creates a new wallet for Betsy
@@ -114,6 +122,7 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 		password:                    password,
 		entryPointAddress:           common.HexToAddress(""),
 		simpleAccountFactoryAddress: common.HexToAddress(""),
+		globalCounterAddress:        common.HexToAddress(""),
 		chainID:                     chainID,
 	}
 
@@ -125,8 +134,8 @@ func NewWallet(ctx context.Context, ethNodePort string, coinbaseKeystoreFile str
 		}
 	}
 
-	//  Deploy the 4337 pre-compiled contracts
-	err = wallet.deploy4337PreCompiledContracts(ctx)
+	//  Deploy the pre-compiled contracts
+	err = wallet.deployPreCompiledContracts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -207,8 +216,16 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 	return nil
 }
 
-// deploy4337PreCompiledContracts deploys the 4337 pre-compiled contracts
-func (w *Wallet) deploy4337PreCompiledContracts(ctx context.Context) error {
+func (w *Wallet) GetPreDeployedContracts() PreDeployedContracts {
+	return PreDeployedContracts{
+		EntryPointAddress:           w.entryPointAddress,
+		SimpleAccountFactoryAddress: w.simpleAccountFactoryAddress,
+		GlobalCounterAddress:        w.globalCounterAddress,
+	}
+}
+
+// deployPreCompiledContracts deploys the pre-compiled contracts
+func (w *Wallet) deployPreCompiledContracts(ctx context.Context) error {
 	log.Info().Msg("Deploying the 4337 EntryPointV7 contract...")
 	auth, err := bind.NewKeyedTransactorWithChainID(w.devAccounts[0].PrivateKey, w.chainID)
 	if err != nil {
@@ -233,9 +250,9 @@ func (w *Wallet) deploy4337PreCompiledContracts(ctx context.Context) error {
 		return err
 	}
 
-	log.Info().Msgf("EntryPointV7 contract deployed at address: %s", entryPointAddress.Hex())
 	w.entryPointAddress = entryPointAddress
 
+	log.Info().Msg("Deploying the 4337 SimpleAccountFactory contract...")
 	simpleAFAddress, tx2, _, err := factory.DeploySimpleAccountFactoryV7(auth, w.client, entryPointAddress)
 	time.Sleep(300 * time.Millisecond) // Allow it to be processed by the local node
 
@@ -246,7 +263,7 @@ func (w *Wallet) deploy4337PreCompiledContracts(ctx context.Context) error {
 		return err
 	}
 
-	exists2, err := checkContractExistence(ctx, entryPointAddress, w.client)
+	exists2, err := checkContractExistence(ctx, simpleAFAddress, w.client)
 	if err != nil {
 		return err
 	}
@@ -254,8 +271,28 @@ func (w *Wallet) deploy4337PreCompiledContracts(ctx context.Context) error {
 		return err
 	}
 
-	log.Info().Msgf("SimpleAccountFactoryV7 contract deployed at address: %s", simpleAFAddress.Hex())
 	w.simpleAccountFactoryAddress = simpleAFAddress
+
+	log.Info().Msg("Deploying the GlobalCounter contract...")
+	globalCounterAddress, tx3, _, err := examples.DeployGlobalCounter(auth, w.client)
+	time.Sleep(300 * time.Millisecond) // Allow it to be processed by the local node
+
+	receipt3, err := bind.WaitMined(ctx, w.client, tx3)
+	if err != nil {
+		return err
+	} else if receipt3.Status == types.ReceiptStatusFailed {
+		return err
+	}
+
+	exists3, err := checkContractExistence(ctx, globalCounterAddress, w.client)
+	if err != nil {
+		return err
+	}
+	if !exists3 {
+		return err
+	}
+
+	w.globalCounterAddress = globalCounterAddress
 
 	return nil
 }

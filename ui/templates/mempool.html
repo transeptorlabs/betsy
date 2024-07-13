@@ -1,5 +1,46 @@
 {{ define "mempool" }}
 <div>
-   UserOp Mempool component
+   <h1>User Operations</h1>
+   <p>Total user ops in mempool: {{ .totalOps }}</p>
+   <hr />
+
+   <!-- Render userOps -->
+   {{ range $key, $userOp := .userOps }}
+      <!-- CREATE2 counterfactual status -->
+      {{ if call $.isCFDeploy $userOp }}
+         <p>CF Deployment status: This userOp will deploy the account</p>
+      {{ else }}
+         <p>CF Deployment status: Account already deployed on-chain</p>
+      {{ end }}
+
+      <p>UserOpHash: {{ $key }}</p>
+      <p>Sender: {{ $userOp.Sender }}</p>
+      <p>Nonce: {{ $userOp.Nonce }}</p>
+
+      <p>Factory: {{ $userOp.Factory }}</p>
+      <p>FactoryData: {{ $userOp.FactoryData }}</p>
+
+      <p>CallData: {{ $userOp.CallData }}</p>
+      <p>CallGasLimit: {{ $userOp.CallGasLimit }}</p>
+
+      <p>VerificationGasLimit: {{ $userOp.VerificationGasLimit }}</p>
+      <p>PreVerificationGas: {{ $userOp.PreVerificationGas }}</p>
+
+      <p>MaxFeePerGas: {{ $userOp.MaxFeePerGas }}</p>
+      <p>MaxPriorityFeePerGas: {{ $userOp.MaxPriorityFeePerGas }}</p>
+
+      <!-- Paymaster -->
+      {{ if $userOp.Paymaster }}
+         <p>Paymaster: {{ $userOp.Paymaster }}</p>
+         <p>PaymasterVerificationGasLimit: {{ $userOp.PaymasterVerificationGasLimit }}</p>
+         <p>PaymasterPostOpGasLimit: {{ $userOp.PaymasterPostOpGasLimit }}</p>
+         <p>PaymasterData: {{ $userOp.PaymasterData }}</p>
+      {{ else }}
+         <p>User Op use a deposit to pay userOp</p>
+      {{ end }}
+
+      <p>Signature: {{ $userOp.Signature }}</p>
+      <hr />
+   {{ end }}
 </div>
 {{ end }}

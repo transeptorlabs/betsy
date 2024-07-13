@@ -24,10 +24,11 @@ import (
 )
 
 type NodeInfo struct {
-	EthNodeUrl         string
-	BundlerNodeUrl     string
-	DashboardServerUrl string
-	DevAccounts        []wallet.DevAccount
+	EthNodeUrl           string
+	BundlerNodeUrl       string
+	DashboardServerUrl   string
+	DevAccounts          []wallet.DevAccount
+	PreDeployedContracts wallet.PreDeployedContracts
 }
 
 func main() {
@@ -259,10 +260,11 @@ func main() {
 
 			prefix := "http://localhost:"
 			err = printBetsyInfo(NodeInfo{
-				EthNodeUrl:         prefix + strconv.Itoa(cCtx.Int("eth.port")),
-				BundlerNodeUrl:     bundlerUrl,
-				DashboardServerUrl: prefix + strconv.Itoa(cCtx.Int("http.port")),
-				DevAccounts:        accounts,
+				EthNodeUrl:           prefix + strconv.Itoa(cCtx.Int("eth.port")),
+				BundlerNodeUrl:       bundlerUrl,
+				DashboardServerUrl:   prefix + strconv.Itoa(cCtx.Int("http.port")),
+				DevAccounts:          accounts,
+				PreDeployedContracts: betsyWallet.GetPreDeployedContracts(),
 			})
 			if err != nil {
 				log.Err(err).Msg("Failed print Betsy info")

@@ -21,18 +21,18 @@ type BundlerClient struct {
 }
 
 type jsonrpcBase struct {
-	jsonrpc string
-	id      int
+	Jsonrpc string `json:"jsonrpc"`
+	Id      int    `json:"id"`
 }
 
 type debugBundlerDumpMempoolRes struct {
 	jsonrpcBase
-	result []data.UserOpV7Hexify
+	Result []data.UserOpV7Hexify `json:"result"`
 }
 
 type debug_bundler_addUserOpsRes struct {
 	jsonrpcBase
-	result string
+	Result string `json:"result"`
 }
 
 func NewBundlerClient(bundlerUrl string) *BundlerClient {
@@ -62,7 +62,7 @@ func (b *BundlerClient) getRequest(rpcMethod string, params []interface{}) (*htt
 }
 
 func (b *BundlerClient) Debug_bundler_dumpMempool() ([]data.UserOpV7Hexify, error) {
-	log.Info().Msgf("Making call to bundler node debug_bundler_dumpMempool at %s", b.bundlerUrl)
+	log.Debug().Msgf("Making call to bundler node debug_bundler_dumpMempool at %s", b.bundlerUrl)
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
@@ -98,11 +98,11 @@ func (b *BundlerClient) Debug_bundler_dumpMempool() ([]data.UserOpV7Hexify, erro
 		return nil, err
 	}
 
-	return data.result, nil
+	return data.Result, nil
 }
 
 func (b *BundlerClient) Debug_bundler_addUserOps(ops []data.UserOpV7Hexify) error {
-	log.Info().Msgf("Making call to bundler node debug_bundler_addUsers at %s", b.bundlerUrl)
+	log.Debug().Msgf("Making call to bundler node debug_bundler_addUsers at %s", b.bundlerUrl)
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
