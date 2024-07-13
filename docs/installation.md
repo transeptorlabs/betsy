@@ -56,7 +56,7 @@ make betsy
 ```shell
 git clone https://github.com/transeptorlabs/betsy.git
 cd betsy
-git checkout vx.y.z
+git checkout -b release/vx.y.z
 make betsy
 ```
 
