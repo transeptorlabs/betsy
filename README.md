@@ -9,15 +9,22 @@ https://pkg.go.dev/badge/github.com/transeptorlabs/betsy
 An all-in-one CLI tool to manage ERC 4337 infrastructure for local development and testing. 
 
 ✨ **Features include:**
-1. Uses an ephemeral in-memory Ethereum execution client that is completely destroyed and starts a fresh instance during each Betsy run
-2. Pre-funded accounts: Default pre-funded accounts with private keys
-3. Pre-deployed contract: Type-safe Go binding for Account abstraction contracts
-   - [EntryPoint release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/core/EntryPoint.sol)
-   - [SimpleAccountFactory release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/samples/SimpleAccountFactory.sol)
-   - GlobalCounter
+1. Ephemeral In-Memory Ethereum Execution Client(Geth)
+   - Starts a fresh instance with each run, ensuring a clean slate every time.
+   - Destroyed after each Betsy run. 
+2. Pre-funded accounts 
+   - Default accounts with pre-funded balances.
+   - Includes private keys for easy access.
+3. Pre-deployed contract
+   - Type-safe Go binding for Account Abstraction contracts:
+        - [EntryPoint release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/core/EntryPoint.sol)
+        - [SimpleAccountFactory release v7](https://github.com/eth-infinitism/account-abstraction/blob/releases/v0.7/contracts/samples/SimpleAccountFactory.sol)
+       - Additional contract: GlobalCounter.
 4. ERC 4337 Bundler clients
-    - [x] [Transeptor](https://github.com/transeptorlabs/transeptor-bundler)
-5. Realtime ERC 4337 userOp mempool explorer UI. Visualize the userOp mempool in real time.
+     - Includes integration with:
+        - [Transeptor bundler](https://github.com/transeptorlabs/transeptor-bundler)
+5. Realtime ERC 4337 userOp Mempool Explorer UI
+    - Visualize the userOp mempool in real-time, offering an insightful view into current operations.
 
 🚧 **Coming soon:**
 1. Supported ERC 4337 bundlers**
