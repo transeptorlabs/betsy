@@ -67,7 +67,7 @@ func NewContainerManager() (*ContainerManager, error) {
 					"--unsafe",
 					"--httpApi", "web3,eth,debug",
 					"--auto",
-					"--autoBundleInterval", "12000",
+					"--autoBundleInterval", "10000", // 10 secs
 					"--network", "http://host.docker.internal:" + EthNodePortPlaceHolder,
 				},
 				Env: []string{
@@ -87,7 +87,7 @@ func NewContainerManager() (*ContainerManager, error) {
 					"--dev",
 					"--nodiscover",
 					"--http",
-					"--dev.gaslimit", "12000000",
+					"--dev.gaslimit", "30000000",
 					"--http.api", "eth,net,web3,debug",
 					"--http.corsdomain", "*://localhost:*",
 					"--http.vhosts", "*,localhost,host.docker.internal",

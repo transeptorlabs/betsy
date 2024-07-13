@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/transeptorlabs/betsy/internal/data"
+	"github.com/transeptorlabs/betsy/internal/mempool"
 	"github.com/transeptorlabs/betsy/wallet"
 )
 
@@ -20,14 +23,16 @@ type HTTPServer struct {
 	debug      bool
 	server     *http.Server
 	wallet     *wallet.Wallet
+	mempool    *mempool.UserOpMempool
 }
 
 // NewHTTPServer creates a new HTTP server.
-func NewHTTPServer(listenHost string, debug bool, wallet *wallet.Wallet) *HTTPServer {
+func NewHTTPServer(listenHost string, debug bool, wallet *wallet.Wallet, mempool *mempool.UserOpMempool) *HTTPServer {
 	return &HTTPServer{
 		listenHost: listenHost,
 		debug:      debug,
 		wallet:     wallet,
+		mempool:    mempool,
 	}
 }
 
@@ -83,8 +88,14 @@ func (s *HTTPServer) Run() error {
 	})
 
 	router.GET("/mempool", func(c *gin.Context) {
+		ops := s.mempool.GetUserOps()
 		c.HTML(http.StatusOK, "mempool", gin.H{
-			"mempool": nil,
+			"isCFDeploy": func(op *data.UserOpV7Hexify) bool {
+				initCode, _ := op.GetInitCode()
+				return hexutil.Encode(initCode) != "0x" // counterfactual deploy is not empty
+			},
+			"totalOps": len(ops),
+			"userOps":  ops,
 		})
 	})
 
