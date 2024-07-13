@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	VersionMajor = 0          // Major version for stable releases
-	VersionMinor = 1          // Minor version for stable releases
-	VersionPatch = 0          // Patch version for stable releases
-	VersionMeta  = "unstable" // Version metadata to append to the version string (e.g. "unstable" or "stable" or "beta")
+	VersionMajor = 0        // Major version for stable releases
+	VersionMinor = 1        // Minor version for stable releases
+	VersionPatch = 0        // Patch version for stable releases
+	VersionMeta  = "stable" // Version metadata to append to the version string (e.g. "unstable" or "stable" or "beta")
 )
 
 // VersionInfo holds the commit hash and commit hash date.
