@@ -48,7 +48,7 @@ To update the latest development version of Betsy, you can:
    
 ```shell
 cd betsy
-git pull
+git pull origin main
 make betsy
 ```
 
@@ -57,6 +57,7 @@ make betsy
 git clone https://github.com/transeptorlabs/betsy.git
 cd betsy
 git checkout -b release/vx.y.z
+git pull origin release/vx.y.z
 make betsy
 ```
 
