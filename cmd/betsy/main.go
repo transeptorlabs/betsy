@@ -107,7 +107,7 @@ func main() {
 				log.Fatal().Err(err).Msg("Failed to initialize logger")
 			}
 
-			err = printWelomeBanner()
+			err = printWelcomeBanner()
 			if err != nil {
 				log.Fatal().Err(err).Msg("Failed to load welcome banner")
 			}
@@ -294,7 +294,8 @@ func main() {
 	}
 }
 
-func printWelomeBanner() error {
+// printWelcomeBanner prints the welcome banner to the console
+func printWelcomeBanner() error {
 	var tmplBannerFile = "ui/templates/banner.tmpl"
 	tmpl, err := template.New("banner.tmpl").ParseFiles(tmplBannerFile)
 	if err != nil {
@@ -308,6 +309,7 @@ func printWelomeBanner() error {
 	return nil
 }
 
+// printBetsyInfo prints the Betsy info to the console
 func printBetsyInfo(nodeInfo NodeInfo) error {
 	var tmplBannerFile = "ui/templates/betsy-info.tmpl"
 	tmpl, err := template.New("betsy-info.tmpl").ParseFiles(tmplBannerFile)

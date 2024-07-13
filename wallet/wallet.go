@@ -62,6 +62,7 @@ type DevAccount struct {
 	Balance       *big.Int
 }
 
+// PreDeployedContracts contains the pre-deployed contracts
 type PreDeployedContracts struct {
 	EntryPointAddress           common.Address
 	SimpleAccountFactoryAddress common.Address
@@ -216,6 +217,7 @@ func (w *Wallet) fundAccountWithEth(ctx context.Context, toAddress common.Addres
 	return nil
 }
 
+// GetPreDeployedContracts returns the pre-deployed contracts
 func (w *Wallet) GetPreDeployedContracts() PreDeployedContracts {
 	return PreDeployedContracts{
 		EntryPointAddress:           w.entryPointAddress,
@@ -378,10 +380,12 @@ func checkContractExistence(ctx context.Context, contractAddress common.Address,
 	return len(code) > 0, nil
 }
 
+// GetEthClient returns the Ethereum client
 func (w *Wallet) GetEthClient() *ethclient.Client {
 	return w.client
 }
 
+// GetGethClient returns the Geth client
 func (w *Wallet) GetGethClient() *gethclient.Client {
 	return gethclient.New(w.client.Client())
 }

@@ -11,11 +11,13 @@ import (
 	"github.com/transeptorlabs/betsy/internal/data"
 )
 
+// MempoolEntry is a struct used to store user operations in a mempool
 type MempoolEntry struct {
 	op     *data.UserOpV7Hexify
 	status string
 }
 
+// UserOpMempool is a struct used to store user operations in a mempool
 type UserOpMempool struct {
 	userOps                  map[common.Hash]MempoolEntry
 	mutex                    sync.Mutex
@@ -28,6 +30,7 @@ type UserOpMempool struct {
 	mempoolRefreshErrorCount int
 }
 
+// NewUserOpMempool creates a new UserOpMempool
 func NewUserOpMempool(epAddress common.Address, ethClient *ethclient.Client, bundlerUrl string) *UserOpMempool {
 	return &UserOpMempool{
 		userOps:                  make(map[common.Hash]MempoolEntry),
@@ -40,6 +43,7 @@ func NewUserOpMempool(epAddress common.Address, ethClient *ethclient.Client, bun
 	}
 }
 
+// GetUserOps returns all user operations in the mempool
 func (m *UserOpMempool) GetUserOps() map[common.Hash]*data.UserOpV7Hexify {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -53,6 +57,7 @@ func (m *UserOpMempool) GetUserOps() map[common.Hash]*data.UserOpV7Hexify {
 	return ops
 }
 
+// addUserOp adds a user operation to the mempool
 func (m *UserOpMempool) addUserOp(op *data.UserOpV7Hexify) error {
 	log.Debug().Msgf("Attempting to add userOp to mempool: %#v\n", op)
 	m.mutex.Lock()
@@ -77,6 +82,7 @@ func (m *UserOpMempool) addUserOp(op *data.UserOpV7Hexify) error {
 	return nil
 }
 
+// refreshMempool refreshes the mempool by fetching user operations from the bundler
 func (m *UserOpMempool) refreshMempool() error {
 	log.Debug().Msg("Refreshing mempool...")
 
@@ -98,6 +104,7 @@ func (m *UserOpMempool) refreshMempool() error {
 	return nil
 }
 
+// Run starts the mempool
 func (m *UserOpMempool) Run() error {
 	if m.isRunning {
 		return nil
@@ -126,6 +133,7 @@ func (m *UserOpMempool) Run() error {
 	return nil
 }
 
+// Stop stops the mempool
 func (m *UserOpMempool) Stop() {
 	if !m.isRunning {
 		return

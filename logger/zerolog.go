@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// GetLogger returns a new zerolog logger with the given log level
 func GetLogger(logLevel string) (zerolog.Logger, error) {
 	level, err := getLevel(logLevel)
 	if err != nil {
@@ -26,8 +27,9 @@ func GetLogger(logLevel string) (zerolog.Logger, error) {
 		Logger(), nil
 }
 
+// getLevel returns the zerolog log level for the given string
 func getLevel(logLevel string) (zerolog.Level, error) {
-	// Defaults to info loevel
+	// Defaults to info logLevel
 	level := zerolog.InfoLevel
 	switch logLevel {
 	case "TRACE":
