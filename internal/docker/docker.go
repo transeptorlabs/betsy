@@ -204,7 +204,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 		return false, fmt.Errorf("Image %s is not supported", image)
 	}
 
-	// Update bundler node cmd with ethnode port
+	// Update bundler node cmd with ethNode port
 	if imageFound.NodeType == "bundler" {
 		foundIndexPort := 0
 		for index, item := range imageFound.Cmd {
@@ -246,7 +246,7 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 			nat.Port(containerPort): struct{}{},
 		},
 		// TODO: Use health check for bundlers and eth node
-		// Healthcheck: &container.HealthConfig{
+		// HealthCheck: &container.HealthConfig{
 		// 	Test:     []string{"CMD", "curl", "-f", "http://localhost:" + hostPort},
 		// 	Interval: 10 * time.Second,
 		// 	Timeout:  5 * time.Second,

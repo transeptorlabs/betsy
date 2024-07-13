@@ -14,27 +14,32 @@ import (
 	"github.com/transeptorlabs/betsy/internal/data"
 )
 
+// BundlerClient is a client for the bundler node
 type BundlerClient struct {
 	bundlerUrl       string
 	jsonRpcRequestID int
 	mutex            sync.Mutex
 }
 
+// jsonrpcBase is the base struct for json rpc requests
 type jsonrpcBase struct {
 	Jsonrpc string `json:"jsonrpc"`
 	Id      int    `json:"id"`
 }
 
+// debugBundlerDumpMempoolRes is the response struct for debug_bundler_dumpMempool rpc method
 type debugBundlerDumpMempoolRes struct {
 	jsonrpcBase
 	Result []data.UserOpV7Hexify `json:"result"`
 }
 
+// debug_bundler_addUserOpsRes is the response struct for debug_bundler_addUserOps rpc method
 type debug_bundler_addUserOpsRes struct {
 	jsonrpcBase
 	Result string `json:"result"`
 }
 
+// NewBundlerClient creates a new BundlerClient
 func NewBundlerClient(bundlerUrl string) *BundlerClient {
 	return &BundlerClient{
 		bundlerUrl:       bundlerUrl,
@@ -42,6 +47,7 @@ func NewBundlerClient(bundlerUrl string) *BundlerClient {
 	}
 }
 
+// getRequest creates a new http request for the given rpc method and params
 func (b *BundlerClient) getRequest(rpcMethod string, params []interface{}) (*http.Request, error) {
 	// Make json rpc request
 	jsonBody, _ := json.Marshal(map[string]interface{}{
@@ -61,6 +67,7 @@ func (b *BundlerClient) getRequest(rpcMethod string, params []interface{}) (*htt
 	return req, nil
 }
 
+// Debug_bundler_dumpMempool calls the debug_bundler_dumpMempool rpc method
 func (b *BundlerClient) Debug_bundler_dumpMempool() ([]data.UserOpV7Hexify, error) {
 	log.Debug().Msgf("Making call to bundler node debug_bundler_dumpMempool at %s", b.bundlerUrl)
 	b.mutex.Lock()
@@ -101,6 +108,7 @@ func (b *BundlerClient) Debug_bundler_dumpMempool() ([]data.UserOpV7Hexify, erro
 	return data.Result, nil
 }
 
+// Debug_bundler_addUserOps calls the debug_bundler_addUserOps rpc method
 func (b *BundlerClient) Debug_bundler_addUserOps(ops []data.UserOpV7Hexify) error {
 	log.Debug().Msgf("Making call to bundler node debug_bundler_addUsers at %s", b.bundlerUrl)
 	b.mutex.Lock()

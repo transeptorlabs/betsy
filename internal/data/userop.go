@@ -40,13 +40,14 @@ type UserOpV7Hexify struct {
 	Signature string `json:"signature"               mapstructure:"signature"`
 }
 
+// GetUserOpHash returns the hash of the user operation
 func (op *UserOpV7Hexify) GetUserOpHash(epAddress common.Address, ethClient *ethclient.Client) (common.Hash, error) {
 	ep, err := entrypoint.NewEntryPointV7(epAddress, ethClient)
 	if err != nil {
 		return common.Hash{}, err
 	}
 
-	packedOp, err := op.packUserOp()
+	packedOp, err := op.PackUserOp()
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -59,6 +60,7 @@ func (op *UserOpV7Hexify) GetUserOpHash(epAddress common.Address, ethClient *eth
 	return common.BytesToHash(hash[:]), nil
 }
 
+// GetInitCode returns the init code of the user operation
 func (op *UserOpV7Hexify) GetInitCode() ([]byte, error) {
 	if op.Factory == "0x" {
 		return []byte{}, nil
@@ -83,7 +85,8 @@ func (op *UserOpV7Hexify) GetInitCode() ([]byte, error) {
 	return concatenatedBytes, nil
 }
 
-func (op *UserOpV7Hexify) getAccountGasLimits() ([32]byte, error) {
+// GetAccountGasLimits returns the account gas limits of the user operation
+func (op *UserOpV7Hexify) GetAccountGasLimits() ([32]byte, error) {
 	verificationGasLimitDecoded, err := hexutil.Decode(op.VerificationGasLimit)
 	if err != nil {
 		return [32]byte{}, errors.New("verificationGasLimit (bytes) conversion failed")
@@ -119,7 +122,8 @@ func (op *UserOpV7Hexify) getAccountGasLimits() ([32]byte, error) {
 	return result, nil
 }
 
-func (op *UserOpV7Hexify) gasFees() ([32]byte, error) {
+// GasFees returns the gas fees of the user operation
+func (op *UserOpV7Hexify) GasFees() ([32]byte, error) {
 	maxPriorityFeePerGasDecoded, err := hexutil.Decode(op.MaxPriorityFeePerGas)
 	if err != nil {
 		return [32]byte{}, errors.New("maxPriorityFeePerGas (bytes) conversion failed")
@@ -155,7 +159,8 @@ func (op *UserOpV7Hexify) gasFees() ([32]byte, error) {
 	return result, nil
 }
 
-func (op *UserOpV7Hexify) getPaymasterAndData() ([]byte, error) {
+// GetPaymasterAndData returns the paymaster and data of the user operation
+func (op *UserOpV7Hexify) GetPaymasterAndData() ([]byte, error) {
 	if op.Paymaster == "0x" || op.Paymaster == "" {
 		return []byte{}, nil
 	}
@@ -218,13 +223,14 @@ func (op *UserOpV7Hexify) getPaymasterAndData() ([]byte, error) {
 	), nil
 }
 
-func (op *UserOpV7Hexify) packUserOp() (*entrypoint.PackedUserOperation, error) {
+// PackUserOp packs the user operation into a PackedUserOperation struct
+func (op *UserOpV7Hexify) PackUserOp() (*entrypoint.PackedUserOperation, error) {
 	nonceDecoded := new(big.Int)
 	nonceDecoded.SetString(op.Nonce, 16)
 
 	initCodeDecoded, err := op.GetInitCode()
 	if err != nil {
-		return nil, fmt.Errorf("initcode conversion failed: %w", err)
+		return nil, fmt.Errorf("initCode conversion failed: %w", err)
 	}
 
 	callDataDecoded, err := hexutil.Decode(op.CallData)
@@ -232,22 +238,22 @@ func (op *UserOpV7Hexify) packUserOp() (*entrypoint.PackedUserOperation, error) 
 		return nil, fmt.Errorf("calldata (bytes) conversion failed: %w", err)
 	}
 
-	preVerificationGaseDecoded, err := hexutil.DecodeBig(op.PreVerificationGas)
+	preVerificationGasDecoded, err := hexutil.DecodeBig(op.PreVerificationGas)
 	if err != nil {
 		return nil, fmt.Errorf("preVerificationGas (bigInt) conversion failed: %w", err)
 	}
 
-	accountGasLimitsDecoded, err := op.getAccountGasLimits()
+	accountGasLimitsDecoded, err := op.GetAccountGasLimits()
 	if err != nil {
 		return nil, fmt.Errorf("accountGasLimit (bytes 32) conversion failed: %w", err)
 	}
 
-	gasFeesDecoded, err := op.gasFees()
+	gasFeesDecoded, err := op.GasFees()
 	if err != nil {
 		return nil, fmt.Errorf("gasFees (bytes 32) conversion failed: %w", err)
 	}
 
-	paymasterAndDataDecoded, err := op.getPaymasterAndData()
+	paymasterAndDataDecoded, err := op.GetPaymasterAndData()
 	if err != nil {
 		return nil, fmt.Errorf("paymasterAndData (bytes) conversion failed: %w", err)
 	}
@@ -263,7 +269,7 @@ func (op *UserOpV7Hexify) packUserOp() (*entrypoint.PackedUserOperation, error) 
 		InitCode:           initCodeDecoded,
 		CallData:           callDataDecoded,
 		AccountGasLimits:   accountGasLimitsDecoded,
-		PreVerificationGas: preVerificationGaseDecoded,
+		PreVerificationGas: preVerificationGasDecoded,
 		GasFees:            gasFeesDecoded,
 		PaymasterAndData:   paymasterAndDataDecoded,
 		Signature:          signatureDecoded,
