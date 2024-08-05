@@ -27,6 +27,8 @@ const BundlerNodeWalletDetails = "bundlerNodeWalletDetails"
 const BundlerNodeEPAddressPlaceHolder = "$ENTRYPOINT_ADDRESS"
 const BundlerNodeBeneficiaryAddressPlaceHolder = "$BENEFICIARY"
 const BundlerNodeMnemonicPlaceHolder = "$MNEMONIC"
+const BundlerNodePrivateKey1PlaceHolder = "$BUNDLER_PRIVATE_KEY_1"
+const BundlerNodePrivateKey2PlaceHolder = "$BUNDLER_PRIVATE_KEY_2"
 
 // ContainerManager manages containers
 type ContainerManager struct {
@@ -74,6 +76,29 @@ func NewContainerManager() (*ContainerManager, error) {
 					"TRANSEPTOR_MNEMONIC=" + BundlerNodeMnemonicPlaceHolder,
 					"TRANSEPTOR_BENEFICIARY=" + BundlerNodeBeneficiaryAddressPlaceHolder,
 					"TRANSEPTOR_ENTRYPOINT_ADDRESS=" + BundlerNodeEPAddressPlaceHolder,
+				},
+				ExposedPorts: nil,
+				NodeType:     "bundler",
+			},
+			"alto": {
+				containerName: "betsy-alto",
+				ContainerID:   "",
+				imageName:     "ghcr.io/pimlicolabs/alto:latest",
+				IsRunning:     false,
+				Cmd: []string{
+					"--network-name",
+					"local",
+				},
+				Env: []string{
+					"ALTO_ENTRY_POINT=" + BundlerNodeEPAddressPlaceHolder,
+					"ALTO_MAX_SIGNERS=1",
+					"ALTO_RPC_URL=" + "http://host.docker.internal:" + EthNodePortPlaceHolder,
+					"ALTO_SIGNER_PRIVATE_KEYS=" + BundlerNodePrivateKey1PlaceHolder,
+					"ALTO_UTILITY_PRIVATE_KEY=" + BundlerNodePrivateKey2PlaceHolder,
+					"ALTO_MIN_BALANCE=0",
+					"ALTO_BUNDLE_MODE=manual",
+					"ALTO_SAFE_MODE=true",
+					"ALTO_ENVIRONMENT=development",
 				},
 				ExposedPorts: nil,
 				NodeType:     "bundler",
@@ -206,19 +231,26 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 
 	// Update bundler node cmd with ethNode port
 	if imageFound.NodeType == "bundler" {
-		foundIndexPort := 0
+
+		// Update bundler cmd values
+		foundIndexPort := -1
 		for index, item := range imageFound.Cmd {
 			if strings.HasSuffix(item, EthNodePortPlaceHolder) {
 				foundIndexPort = index
 				break
 			}
 		}
-		imageFound.Cmd[foundIndexPort] = strings.Replace(imageFound.Cmd[foundIndexPort], EthNodePortPlaceHolder, cm.EthNodePort, 1)
+		if foundIndexPort != -1 {
+			imageFound.Cmd[foundIndexPort] = strings.Replace(imageFound.Cmd[foundIndexPort], EthNodePortPlaceHolder, cm.EthNodePort, 1)
+		}
 
+		// Update bundler env values
 		bundlerDetails := ctx.Value(BundlerNodeWalletDetails).(wallet.BundlerWalletDetails)
-		foundIndexBeneficiary := 0
-		foundIndexMnemonic := 0
-		foundIndexEntryPointAddress := 0
+		foundIndexBeneficiary := -1
+		foundIndexMnemonic := -1
+		foundIndexEntryPointAddress := -1
+		foundIndexBundlerPrivateKey1 := -1
+		foundIndexBundlerPrivateKey2 := -1
 		for index, item := range imageFound.Env {
 			if strings.HasSuffix(item, BundlerNodeBeneficiaryAddressPlaceHolder) {
 				foundIndexBeneficiary = index
@@ -231,10 +263,43 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 			if strings.Contains(item, BundlerNodeEPAddressPlaceHolder) {
 				foundIndexEntryPointAddress = index
 			}
+
+			if strings.Contains(item, BundlerNodePrivateKey1PlaceHolder) {
+				foundIndexBundlerPrivateKey1 = index
+			}
+
+			if strings.Contains(item, BundlerNodePrivateKey2PlaceHolder) {
+				foundIndexBundlerPrivateKey2 = index
+			}
+
+			if strings.Contains(item, EthNodePortPlaceHolder) {
+				foundIndexPort = index
+			}
 		}
-		imageFound.Env[foundIndexEntryPointAddress] = strings.Replace(imageFound.Env[foundIndexEntryPointAddress], BundlerNodeEPAddressPlaceHolder, bundlerDetails.EntryPointAddress.Hex(), 1)
-		imageFound.Env[foundIndexBeneficiary] = strings.Replace(imageFound.Env[foundIndexBeneficiary], BundlerNodeBeneficiaryAddressPlaceHolder, bundlerDetails.Beneficiary.Hex(), 1)
-		imageFound.Env[foundIndexMnemonic] = strings.Replace(imageFound.Env[foundIndexMnemonic], BundlerNodeMnemonicPlaceHolder, bundlerDetails.Mnemonic, 1)
+
+		if foundIndexEntryPointAddress != -1 {
+			imageFound.Env[foundIndexEntryPointAddress] = strings.Replace(imageFound.Env[foundIndexEntryPointAddress], BundlerNodeEPAddressPlaceHolder, bundlerDetails.EntryPointAddress.Hex(), 1)
+		}
+
+		if foundIndexBeneficiary != -1 {
+			imageFound.Env[foundIndexBeneficiary] = strings.Replace(imageFound.Env[foundIndexBeneficiary], BundlerNodeBeneficiaryAddressPlaceHolder, bundlerDetails.Beneficiary.Hex(), 1)
+		}
+
+		if foundIndexMnemonic != -1 {
+			imageFound.Env[foundIndexMnemonic] = strings.Replace(imageFound.Env[foundIndexMnemonic], BundlerNodeMnemonicPlaceHolder, bundlerDetails.Mnemonic, 1)
+		}
+
+		if foundIndexBundlerPrivateKey1 != -1 {
+			imageFound.Env[foundIndexBundlerPrivateKey1] = strings.Replace(imageFound.Env[foundIndexBundlerPrivateKey1], BundlerNodePrivateKey1PlaceHolder, bundlerDetails.BundlerPrivateKeyHex, 1)
+		}
+
+		if foundIndexBundlerPrivateKey2 != -1 {
+			imageFound.Env[foundIndexBundlerPrivateKey2] = strings.Replace(imageFound.Env[foundIndexBundlerPrivateKey2], BundlerNodePrivateKey2PlaceHolder, bundlerDetails.BundlerPrivateKeyHex, 1)
+		}
+
+		if foundIndexPort != -1 {
+			imageFound.Env[foundIndexPort] = strings.Replace(imageFound.Env[foundIndexPort], EthNodePortPlaceHolder, cm.EthNodePort, 1)
+		}
 	}
 
 	containerPort := hostPort + "/tcp"

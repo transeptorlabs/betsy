@@ -34,9 +34,10 @@ const cfEntrypointV7Address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 
 // BundlerWalletDetails contains the details of the bundler wallet
 type BundlerWalletDetails struct {
-	Beneficiary       common.Address
-	Mnemonic          string
-	EntryPointAddress common.Address
+	Beneficiary          common.Address
+	Mnemonic             string
+	EntryPointAddress    common.Address
+	BundlerPrivateKeyHex string
 }
 
 // Wallet contains the details of the wallet for Betsy
@@ -167,9 +168,10 @@ func (w *Wallet) GetDevAccounts(ctx context.Context) ([]DevAccount, error) {
 // GetBundlerWalletDetails returns the details of the bundler wallet
 func (w *Wallet) GetBundlerWalletDetails() BundlerWalletDetails {
 	return BundlerWalletDetails{
-		Beneficiary:       w.bundlerBeneficiaryAddress,
-		Mnemonic:          DefaultSeedPhrase,
-		EntryPointAddress: w.entryPointAddress,
+		Beneficiary:          w.bundlerBeneficiaryAddress,
+		Mnemonic:             DefaultSeedPhrase,
+		EntryPointAddress:    w.entryPointAddress,
+		BundlerPrivateKeyHex: w.devAccounts[0].PrivateKeyHex,
 	}
 }
 

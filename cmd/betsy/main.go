@@ -88,9 +88,9 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:     "bundler",
-				Usage:    "ERC 4337 bundler",
+				Usage:    "ERC 4337 bundler. Supported bundlers: transeptor, alto",
 				Required: false,
-				Value:    "transeptor",
+				Value:    "alto",
 				Category: "ERC 4337 bundler selection:",
 			},
 			&cli.UintFlag{
