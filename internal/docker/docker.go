@@ -30,7 +30,7 @@ const BundlerNodeMnemonicPlaceHolder = "$MNEMONIC"
 
 // ContainerManager manages containers
 type ContainerManager struct {
-	supportedImages      map[string]ContainerDetails
+	supportedImages      map[string]*ContainerDetails
 	client               *client.Client
 	EthNodePort          string
 	CoinbaseKeystoreFile string
@@ -56,7 +56,7 @@ func NewContainerManager() (*ContainerManager, error) {
 	}
 
 	return &ContainerManager{
-		supportedImages: map[string]ContainerDetails{
+		supportedImages: map[string]*ContainerDetails{
 			"transeptor": {
 				containerName: "betsy-transeptor",
 				ContainerID:   "",
@@ -75,6 +75,20 @@ func NewContainerManager() (*ContainerManager, error) {
 					"TRANSEPTOR_BENEFICIARY=" + BundlerNodeBeneficiaryAddressPlaceHolder,
 					"TRANSEPTOR_ENTRYPOINT_ADDRESS=" + BundlerNodeEPAddressPlaceHolder,
 				},
+				ExposedPorts: nil,
+				NodeType:     "bundler",
+			},
+			"aabundler": {
+				containerName: "betsy-aabundler",
+				ContainerID:   "",
+				imageName:     "accountabstraction/bundler:0.7.0",
+				IsRunning:     false,
+				Cmd: []string{
+					"--network", "http://host.docker.internal:" + EthNodePortPlaceHolder,
+					"--entryPoint", BundlerNodeEPAddressPlaceHolder,
+					"--beneficiary", BundlerNodeBeneficiaryAddressPlaceHolder,
+				},
+				Env:          []string{},
 				ExposedPorts: nil,
 				NodeType:     "bundler",
 			},
@@ -197,6 +211,35 @@ func (cm *ContainerManager) doPullImage(ctx context.Context, imageName string) (
 	return true, nil
 }
 
+func (cm *ContainerManager) doReplaceBundlerPlaceHolders(containerDetails *ContainerDetails, bwd wallet.BundlerWalletDetails) {
+	placeholders := map[string]string{
+		BundlerNodeEPAddressPlaceHolder:          bwd.EntryPointAddress.Hex(),
+		BundlerNodeBeneficiaryAddressPlaceHolder: bwd.Beneficiary.Hex(),
+		BundlerNodeMnemonicPlaceHolder:           bwd.Mnemonic,
+		EthNodePortPlaceHolder:                   cm.EthNodePort,
+	}
+
+	// Replace placeholders in Cmd slice
+	for placeholder, value := range placeholders {
+		replacePlaceHolderInSlice(&containerDetails.Cmd, placeholder, value)
+	}
+
+	// Replace placeholders in Env slice
+
+	for placeholder, value := range placeholders {
+		replacePlaceHolderInSlice(&containerDetails.Env, placeholder, value)
+	}
+}
+
+// replacePlaceHolderInSlice finds and replaces a placeholder in a slice of strings.
+func replacePlaceHolderInSlice(slice *[]string, placeholder, replacement string) {
+	for i, item := range *slice {
+		if strings.Contains(item, placeholder) {
+			(*slice)[i] = strings.Replace(item, placeholder, replacement, 1)
+		}
+	}
+}
+
 // RunContainerInTheBackground runs a Docker container in the background given its image and host port to bind
 func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, image string, hostPort string) (bool, error) {
 	imageFound, ok := cm.supportedImages[image]
@@ -206,37 +249,11 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 
 	// Update bundler node cmd with ethNode port
 	if imageFound.NodeType == "bundler" {
-		foundIndexPort := 0
-		for index, item := range imageFound.Cmd {
-			if strings.HasSuffix(item, EthNodePortPlaceHolder) {
-				foundIndexPort = index
-				break
-			}
-		}
-		imageFound.Cmd[foundIndexPort] = strings.Replace(imageFound.Cmd[foundIndexPort], EthNodePortPlaceHolder, cm.EthNodePort, 1)
-
-		bundlerDetails := ctx.Value(BundlerNodeWalletDetails).(wallet.BundlerWalletDetails)
-		foundIndexBeneficiary := 0
-		foundIndexMnemonic := 0
-		foundIndexEntryPointAddress := 0
-		for index, item := range imageFound.Env {
-			if strings.HasSuffix(item, BundlerNodeBeneficiaryAddressPlaceHolder) {
-				foundIndexBeneficiary = index
-			}
-
-			if strings.Contains(item, BundlerNodeMnemonicPlaceHolder) {
-				foundIndexMnemonic = index
-			}
-
-			if strings.Contains(item, BundlerNodeEPAddressPlaceHolder) {
-				foundIndexEntryPointAddress = index
-			}
-		}
-		imageFound.Env[foundIndexEntryPointAddress] = strings.Replace(imageFound.Env[foundIndexEntryPointAddress], BundlerNodeEPAddressPlaceHolder, bundlerDetails.EntryPointAddress.Hex(), 1)
-		imageFound.Env[foundIndexBeneficiary] = strings.Replace(imageFound.Env[foundIndexBeneficiary], BundlerNodeBeneficiaryAddressPlaceHolder, bundlerDetails.Beneficiary.Hex(), 1)
-		imageFound.Env[foundIndexMnemonic] = strings.Replace(imageFound.Env[foundIndexMnemonic], BundlerNodeMnemonicPlaceHolder, bundlerDetails.Mnemonic, 1)
+		bwd := ctx.Value(BundlerNodeWalletDetails).(wallet.BundlerWalletDetails)
+		cm.doReplaceBundlerPlaceHolders(imageFound, bwd)
 	}
 
+	// Create and start the container
 	containerPort := hostPort + "/tcp"
 	config := &container.Config{
 		Image: imageFound.imageName,
@@ -245,13 +262,6 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 		ExposedPorts: nat.PortSet{
 			nat.Port(containerPort): struct{}{},
 		},
-		// TODO: Use health check for bundlers and eth node
-		// HealthCheck: &container.HealthConfig{
-		// 	Test:     []string{"CMD", "curl", "-f", "http://localhost:" + hostPort},
-		// 	Interval: 10 * time.Second,
-		// 	Timeout:  5 * time.Second,
-		// 	Retries:  5,
-		// },
 	}
 
 	hostConfig := &container.HostConfig{
@@ -276,15 +286,11 @@ func (cm *ContainerManager) RunContainerInTheBackground(ctx context.Context, ima
 
 	// Update the container details
 	log.Debug().Msgf("%s Container ID successfully started: %s\n", image, resp.ID)
-	cm.supportedImages[image] = ContainerDetails{
-		imageName: imageFound.imageName,
-		Cmd:       imageFound.Cmd,
-		ExposedPorts: nat.PortSet{
-			nat.Port(containerPort): struct{}{},
-		},
-		ContainerID: resp.ID,
-		IsRunning:   true,
+	imageFound.ExposedPorts = nat.PortSet{
+		nat.Port(containerPort): struct{}{},
 	}
+	imageFound.ContainerID = resp.ID
+	imageFound.IsRunning = true
 
 	// Update EthNodeReady channel and signal that eth is ready by closing the channel
 	if imageFound.NodeType == "eth" {

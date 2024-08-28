@@ -9,6 +9,9 @@ help:
 run-cli:
 	$(GORUN) ./cmd/betsy/main.go
 
+run-cli-aa:
+	$(GORUN) ./cmd/betsy/main.go --bundler aabundler
+
 run-cli-dev:
 	$(GORUN) ./cmd/betsy/main.go --log DEBUG --debug
 
